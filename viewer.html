@@ -538,18 +538,25 @@
         // =======================================================
 
         window.onload = () => {
+            // Loại bỏ tất cả ký tự không phải là Base64 hợp lệ, sau đó trim
             const hashValueRaw = window.location.hash.substring(1);
             const hashValue = hashValueRaw.replace(/[^a-zA-Z0-9\-_=]/g, '').trim(); 
             const container = document.getElementById('viewer-container');
             
             if (!hashValue) {
-                container.innerHTML = `<div class="alert-message">**LỖI:** Không tìm thấy dữ liệu mẫu thiết kế chia sẻ trong URL.</div>`;
+                container.innerHTML = `
+                    <div class="alert-message">
+                        **LỖI:** Không tìm thấy dữ liệu mẫu thiết kế chia sẻ trong URL.
+                    </div>
+                `;
                 return;
             }
 
             try {
                 const safeHashValue = urlSafeBase64Decode(hashValue);
+                // Dùng atob để giải mã Base64
                 const base64Decoded = atob(safeHashValue); 
+                // Giải mã UTF-8
                 const decodedJsonString = decodeURIComponent(escape(base64Decoded));
                 const designData = JSON.parse(decodedJsonString);
                 
@@ -565,11 +572,10 @@
                     <div class="alert-message">
                         **LỖI NGHIÊM TRỌNG (Dữ liệu hỏng):** Không thể tải mẫu thiết kế. Dữ liệu trong URL bị hỏng.
                         <p>Chi tiết: ${e.message}</p>
-                        <p>Vui lòng yêu cầu người gửi tạo lại link chia sẻ mới.</p>
+                        <p>Vui lòng quay lại Trang Thiết Kế (<a href="index.html">index.html</a>) và tạo lại link chia sẻ.</p>
                     </div>
                 `;
             }
-
             // GẮN SỰ KIỆN TƯƠNG TÁC LÊN CANVAS
             canvas.addEventListener('mousedown', handleMouseDown);
             canvas.addEventListener('mousemove', handleMouseMove);
