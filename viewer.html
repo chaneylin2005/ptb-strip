@@ -66,7 +66,6 @@
         // --- HÀM HỖ TRỢ URL-SAFE BASE64 (ĐẶT Ở ĐÂY ĐỂ ĐẢM BẢO PHẠM VI TOÀN CỤC) ---
         function urlSafeBase64Decode(str) {
             str = str.replace(/-/g, '+').replace(/_/g, '/');
-            // Thêm padding cho atob()
             while (str.length % 4) {
                 str += '=';
             }
@@ -276,7 +275,6 @@
             link.download = `photobooth-strip-${currentDesignId || Date.now()}.png`;
             link.href = imageURL;
             document.body.appendChild(link);
-            link.click();
             document.body.removeChild(link);
             
             selectedObject = tempSelectedObject;
@@ -473,11 +471,12 @@
             drawFrame(); 
 
             canvasObjects = [];
+            capturedPhotos = [];
             let loadCount = 0;
             
             const photosToLoadData = designData.photos || [];
             const objectsToLoadData = designData.objects || [];
-            const totalItemsToLoad = photosToLoadData.length + objectsToLoadData.length;
+            const totalItemsToLoad = photosToLoadData.length + objectsToLoadData.length; 
 
             const finishLoading = () => {
                 loadCount++;
@@ -485,10 +484,10 @@
                     drawFrame(); 
                 }
             };
-            
+
             if (totalItemsToLoad === 0) finishLoading();
 
-            // Tải ảnh đã chụp/tải lên từ mẫu (capturedPhotos)
+            // 1. Tải ảnh đã chụp/tải lên từ mẫu (capturedPhotos)
             photosToLoadData.forEach((photoData, index) => {
                 if (photoData && photoData.src) {
                     const img = new Image();
@@ -498,7 +497,10 @@
                         updateCaptureButtonText();
                         finishLoading();
                     };
-                    img.onerror = finishLoading;
+                    img.onerror = () => {
+                        capturedPhotos[index] = null; // Bỏ qua ảnh lỗi
+                        finishLoading();
+                    };
                     img.crossOrigin = "Anonymous";
                     img.src = photoData.src;
                 } else {
@@ -507,7 +509,7 @@
                 }
             });
 
-            // Tải Objects (Sticker/Text)
+            // 2. Tải Objects (Sticker/Text/Ảnh Idol)
             objectsToLoadData.forEach(objData => {
                 if (objData.type === 'text') {
                     canvasObjects.push(objData);
@@ -572,11 +574,6 @@
             canvas.addEventListener('mousemove', handleMouseMove);
             canvas.addEventListener('mouseup', handleMouseUp);
             canvas.addEventListener('mouseout', handleMouseUp);
-            canvas.addEventListener('mousedown', handleMouseDown);
-            canvas.addEventListener('mousemove', handleMouseMove);
-            canvas.addEventListener('mouseup', handleMouseUp);
-            canvas.addEventListener('mouseout', handleMouseUp); 
-
         };
 
         // Gắn sự kiện chụp/xuất ảnh 
