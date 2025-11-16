@@ -85,7 +85,7 @@
         const MAX_PHOTOS = 4;
         let capturedPhotos = []; 
         let currentPhotoIndex = 0;
-        let canvasObjects = []; // Đối tượng sticker/text
+        let canvasObjects = []; 
 
         // --- BIẾN ĐIỀU KHIỂN TƯƠNG TÁC ---
         let isDragging = false;
@@ -187,6 +187,7 @@
                 ctx.fillStyle = '#ffffff';
                 ctx.fillRect(x, y, photoWidth, photoHeight);
 
+                // VẼ ẢNH ĐÃ CHỤP TỪ MẪU THIẾT KẾ HOẶC WEBCAM
                 if (capturedPhotos[i] && capturedPhotos[i].image) {
                     const img = capturedPhotos[i].image;
                     const imgAspectRatio = img.width / img.height;
@@ -234,7 +235,6 @@
                     ctx.textAlign = 'center'; 
                     ctx.textBaseline = 'middle'; 
                     
-                    // Cập nhật lại kích thước của text object để vùng tương tác chính xác
                     const metrics = ctx.measureText(obj.text);
                     obj.width = metrics.width;
                     obj.height = obj.fontSize * 1.2; 
@@ -267,7 +267,6 @@
         }
 
         function exportFinalImage() {
-            // Hủy chọn đối tượng trước khi xuất để không vẽ viền điều khiển
             const tempSelectedObject = selectedObject;
             selectedObject = null;
             drawFrame(); 
@@ -277,10 +276,8 @@
             link.download = `photobooth-strip-${currentDesignId || Date.now()}.png`;
             link.href = imageURL;
             document.body.appendChild(link);
-            link.click();
             document.body.removeChild(link);
             
-            // Khôi phục lại đối tượng được chọn (nếu có)
             selectedObject = tempSelectedObject;
             drawFrame();
         }
@@ -353,11 +350,11 @@
             isRotating = false;
             if (e.button === 2) return; 
             
-            // Xử lý việc chọn đối tượng và kiểm tra handles
+            selectedObject = null; 
+
             for (let i = canvasObjects.length - 1; i >= 0; i--) {
                 const obj = canvasObjects[i];
                 
-                // Kiểm tra Rotate Handle
                 if (isPointInRotateHandle(mousePos.x, mousePos.y, obj)) {
                     selectedObject = obj;
                     isRotating = true;
@@ -369,7 +366,6 @@
                     return;
                 }
 
-                // Kiểm tra Resize Handle
                 if (isPointInResizeHandle(mousePos.x, mousePos.y, obj)) {
                     selectedObject = obj;
                     isResizing = true;
@@ -380,9 +376,7 @@
                     return;
                 }
 
-                // Kiểm tra kéo đối tượng
                 if (isPointInObject(mousePos.x, mousePos.y, obj)) {
-                    // Đưa đối tượng lên trên cùng (z-index)
                     canvasObjects.splice(i, 1);
                     canvasObjects.push(obj);
                     foundObject = obj;
@@ -397,7 +391,6 @@
                 startY = mousePos.y;
                 drawFrame(); 
             } else {
-                // Hủy chọn nếu click ra ngoài
                 selectedObject = null;
                 drawFrame();
             }
@@ -424,7 +417,6 @@
                         obj.height = newWidth * aspectRatio;
                     }
                 } else if (obj.type === 'text') {
-                    // Thay đổi fontSize dựa trên thay đổi chiều cao
                     let newSize = obj.fontSize + dy / 2; 
                     if (newSize < 10) newSize = 10;
                     obj.fontSize = newSize; 
@@ -467,7 +459,6 @@
         // =======================================================
 
         function loadDesignFromData(designData) {
-            // ... (Phần này không đổi) ...
             frameColor = designData.settings.frameColor || '#000000';
             frameThickness = parseInt(designData.settings.frameThickness) || 25;
             photoSizeScale = parseFloat(designData.settings.photoSizeScale) || 1.0;
@@ -479,19 +470,45 @@
 
             canvasObjects = [];
             let loadCount = 0;
-            const objectsToLoad = designData.objects || [];
-            const totalObjects = objectsToLoad.length;
             
+            const photosToLoadData = designData.photos || [];
+            const objectsToLoadData = designData.objects || [];
+            // Tổng số items cần load (ảnh đã chụp/tải lên + objects overlay)
+            const totalItemsToLoad = photosToLoadData.length + objectsToLoadData.length; 
+
             const finishLoading = () => {
                 loadCount++;
-                if (loadCount === totalObjects || totalObjects === 0) {
+                if (loadCount === totalItemsToLoad || totalItemsToLoad === 0) {
                     drawFrame(); 
                 }
             };
+            
+            if (totalItemsToLoad === 0) finishLoading();
 
-            if (totalObjects === 0) finishLoading();
+            // 1. Tải ảnh đã chụp/tải lên từ mẫu (capturedPhotos)
+            photosToLoadData.forEach((photoData, index) => {
+                if (photoData && photoData.src) {
+                    const img = new Image();
+                    img.onload = () => {
+                        capturedPhotos[index] = { index: index, image: img, src: photoData.src };
+                        currentPhotoIndex = Math.max(currentPhotoIndex, index + 1);
+                        updateCaptureButtonText();
+                        finishLoading();
+                    };
+                    img.onerror = () => {
+                        capturedPhotos[index] = null; // Bỏ qua ảnh lỗi
+                        finishLoading();
+                    };
+                    img.crossOrigin = "Anonymous";
+                    img.src = photoData.src;
+                } else {
+                    capturedPhotos[index] = null;
+                    finishLoading();
+                }
+            });
 
-            objectsToLoad.forEach(objData => {
+            // 2. Tải Objects (Sticker/Text/Ảnh Idol)
+            objectsToLoadData.forEach(objData => {
                 if (objData.type === 'text') {
                     canvasObjects.push(objData);
                     finishLoading();
@@ -501,7 +518,10 @@
                         canvasObjects.push({...objData, image: img});
                         finishLoading();
                     };
-                    img.onerror = finishLoading; 
+                    img.onerror = () => {
+                         // Nếu image/sticker lỗi, vẫn tính là đã tải xong, nhưng không push vào array
+                        finishLoading(); 
+                    };
                     img.crossOrigin = "Anonymous"; 
                     img.src = objData.src;
                 } else {
@@ -518,25 +538,18 @@
         // =======================================================
 
         window.onload = () => {
-            // Loại bỏ tất cả ký tự không phải là Base64 hợp lệ, sau đó trim
             const hashValueRaw = window.location.hash.substring(1);
             const hashValue = hashValueRaw.replace(/[^a-zA-Z0-9\-_=]/g, '').trim(); 
             const container = document.getElementById('viewer-container');
             
             if (!hashValue) {
-                container.innerHTML = `
-                    <div class="alert-message">
-                        **LỖI:** Không tìm thấy dữ liệu mẫu thiết kế chia sẻ trong URL.
-                    </div>
-                `;
+                container.innerHTML = `<div class="alert-message">**LỖI:** Không tìm thấy dữ liệu mẫu thiết kế chia sẻ trong URL.</div>`;
                 return;
             }
 
             try {
                 const safeHashValue = urlSafeBase64Decode(hashValue);
-                // Dùng atob để giải mã Base64
                 const base64Decoded = atob(safeHashValue); 
-                // Giải mã UTF-8
                 const decodedJsonString = decodeURIComponent(escape(base64Decoded));
                 const designData = JSON.parse(decodedJsonString);
                 
@@ -552,7 +565,7 @@
                     <div class="alert-message">
                         **LỖI NGHIÊM TRỌNG (Dữ liệu hỏng):** Không thể tải mẫu thiết kế. Dữ liệu trong URL bị hỏng.
                         <p>Chi tiết: ${e.message}</p>
-                        <p>Vui lòng quay lại Trang Thiết Kế (<a href="index.html">index.html</a>) và tạo lại link chia sẻ.</p>
+                        <p>Vui lòng yêu cầu người gửi tạo lại link chia sẻ mới.</p>
                     </div>
                 `;
             }
@@ -569,7 +582,6 @@
         exportFinalImageBtn.addEventListener('click', exportFinalImage);
         
         viewerImageUpload.addEventListener('change', (e) => {
-            // ... (Logic tải ảnh lên không đổi) ...
             const files = e.target.files;
             if (files.length > 0) {
                 const file = files[0];
@@ -597,5 +609,3 @@
             }
         });
     </script>
-</body>
-</html>
