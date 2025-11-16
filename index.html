@@ -7,7 +7,7 @@
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Montserrat:ital,wght@0,400;0,700;1,400&family=Pacifico&family=Pinyon+Script&family=Roboto:wght@400;700&family=Oswald:wght@400;700&family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Montserrat:ital,wght@0,400;0,700;1,400&family=Pacifico&family=Pinyon+Script&display=swap" rel="stylesheet">
     
     <style>
         /* ==================== CSS CHUNG ==================== */
@@ -49,15 +49,12 @@
         #newDesignBtnDesign { background-color: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
         #newDesignBtnDesign:hover { background-color: #0056b3; }
         
-        /* Font Previews */
+        /* Font Previews (vẫn giữ các class) */
         .font-arial { font-family: Arial, sans-serif; }
         .font-dancing { font-family: 'Dancing Script', cursive; }
         .font-pacifico { font-family: 'Pacifico', cursive; }
         .font-pinyon { font-family: 'Pinyon Script', cursive; }
         .font-montserrat { font-family: 'Montserrat', sans-serif; }
-        .font-roboto { font-family: 'Roboto', sans-serif; }
-        .font-oswald { font-family: 'Oswald', sans-serif; }
-        .font-merriweather { font-family: 'Merriweather', serif; }
 
 
         /* ==================== CHẾ ĐỘ THƯ VIỆN (LIBRARY MODE) ==================== */
@@ -118,7 +115,7 @@
             <fieldset class="control-group">
                 <legend>Tùy Chỉnh Cơ Bản</legend>
                 <div><label for="frameColor">Màu Khung/Viền:</label><input type="color" id="frameColor" value="#000000"></div>
-                <div><label for="frameThickness">Độ Dày Khung (px):</label><input type="range" id="frameThickness" min="5" max="200" value="25"><span id="thicknessValue">25px</span></div>
+                <div><label for="frameThickness">Độ Dày Khung (px):</label><input type="range" id="frameThickness" min="5" max="100" value="25"><span id="thicknessValue">25px</span></div>
                 <div><label for="photoSizeScale">Tỷ Lệ Kích Cỡ Ảnh:</label><input type="range" id="photoSizeScale" min="0.5" max="1.5" step="0.05" value="1.0"><span id="sizeValue">100%</span></div>
                 <div><label for="stripWidth">Độ Rộng Strip (px):</label><input type="number" id="stripWidth" value="600" min="100"></div>
                 <div><label for="stripHeight">Độ Dài Strip (px):</label><input type="number" id="stripHeight" value="1800" min="300"></div>
@@ -136,9 +133,6 @@
                     <label for="fontSelect">Font:</label>
                     <select id="fontSelect">
                         <option value="Montserrat" class="font-montserrat">Montserrat (Hiện đại)</option>
-                        <option value="Roboto" class="font-roboto">Roboto (Sạch sẽ)</option>
-                        <option value="Oswald" class="font-oswald">Oswald (Chữ khối)</option>
-                        <option value="Merriweather" class="font-merriweather">Merriweather (Cổ điển)</option>
                         <option value="Arial" class="font-arial">Arial (Cơ bản)</option>
                         <option value="Dancing Script" class="font-dancing">Dancing Script (Viết tay)</option>
                         <option value="Pacifico" class="font-pacifico">Pacifico (Cổ điển)</option>
@@ -445,14 +439,14 @@
                     // Cập nhật lại width/height dựa trên kích thước text
                     ctx.font = `${obj.fontSize}px "${obj.fontFamily}", sans-serif`;
                     ctx.fillStyle = obj.textColor;
-                    ctx.textAlign = obj.textAlign;
-                    ctx.textBaseline = obj.textBaseline;
+                    ctx.textAlign = 'center'; // Cố định text center để xoay đúng tâm
+                    ctx.textBaseline = 'middle'; 
 
                     const metrics = ctx.measureText(obj.text);
                     obj.width = metrics.width;
                     obj.height = obj.fontSize * 1.2; // Ước lượng chiều cao
 
-                    // Vẽ text (chỉnh lại vị trí vẽ để text căn giữa bounding box)
+                    // Vẽ text (x, y là tâm của bounding box)
                     ctx.fillText(obj.text, obj.x + obj.width / 2, obj.y + obj.height / 2); 
                 }
                 
@@ -460,7 +454,6 @@
                 if (controlsPanel.style.display !== 'none' && obj === selectedObject) {
                     ctx.strokeStyle = '#FF00FF'; 
                     ctx.lineWidth = 2;
-                    // LƯU Ý: Đối với Text, bounding box được tính lại
                     ctx.strokeRect(obj.x, obj.y, obj.width, obj.height);
                     
                     const controlPointSize = 10;
@@ -553,7 +546,7 @@
                 height: 0, 
                 angle: 0,
                 textAlign: 'center', 
-                textBaseline: 'middle' // Chỉ dùng cho vẽ text, bounding box sẽ tính lại trong drawFrame
+                textBaseline: 'middle' 
             };
             canvasObjects.push(newObject);
             selectedObject = newObject; 
@@ -564,7 +557,7 @@
 
         // =======================================================
         // PHẦN 3: LOGIC KÉO, THẢ, RESIZING, ROTATING & LAYER
-        // (Đã cập nhật logic xoay và tương tác với Text)
+        // (Đã giữ lại logic fix xoay)
         // =======================================================
 
         function getMousePos(e) {
@@ -576,14 +569,12 @@
         }
         
         function isPointInObject(x, y, obj) {
-            // LƯU Ý: Phải sử dụng logic ngược lại để kiểm tra điểm trong đối tượng đã xoay
             const centerX = obj.x + obj.width / 2;
             const centerY = obj.y + obj.height / 2;
 
             const cos = Math.cos(-obj.angle);
             const sin = Math.sin(-obj.angle);
             
-            // Xoay ngược điểm chuột
             const rotatedX = cos * (x - centerX) - sin * (y - centerY) + centerX;
             const rotatedY = sin * (x - centerX) + cos * (y - centerY) + centerY;
 
@@ -591,7 +582,6 @@
                    rotatedY >= obj.y && rotatedY <= obj.y + obj.height;
         }
         
-        // Cải tiến logic phát hiện nút điều khiển đã xoay (tương tự logic isPointInObject)
         function checkRotatedHandle(x, y, obj, handleType) {
             const controlPointSize = 10;
             let handleX, handleY;
@@ -609,7 +599,6 @@
             const centerX = obj.x + obj.width / 2;
             const centerY = obj.y + obj.height / 2;
 
-            // Xoay ngược điểm chuột để kiểm tra nó có nằm trong handle không
             const cos = Math.cos(-obj.angle);
             const sin = Math.sin(-obj.angle);
 
@@ -629,7 +618,6 @@
         }
 
         function handleMouseDown(e) {
-            // Chỉ cho phép tương tác khi ở Designer Mode
             if (controlsPanel.style.display === 'none') return;
             
             const mousePos = getMousePos(e);
@@ -637,7 +625,6 @@
             isResizing = false;
             isRotating = false;
             
-            // Nếu chuột phải, không chọn đối tượng mới, chỉ xử lý contextmenu
             if (e.button === 2) return; 
             
             selectedObject = null; 
@@ -645,7 +632,6 @@
             for (let i = canvasObjects.length - 1; i >= 0; i--) {
                 const obj = canvasObjects[i];
                 
-                // Kiểm tra nút Rotate
                 if (isPointInRotateHandle(mousePos.x, mousePos.y, obj)) {
                     selectedObject = obj;
                     isRotating = true;
@@ -658,7 +644,6 @@
                     return;
                 }
 
-                // Kiểm tra nút Resize
                 if (isPointInResizeHandle(mousePos.x, mousePos.y, obj)) {
                     selectedObject = obj;
                     isResizing = true;
@@ -670,7 +655,6 @@
                     return;
                 }
 
-                // Kiểm tra đối tượng (chọn đối tượng trên cùng)
                 if (isPointInObject(mousePos.x, mousePos.y, obj)) {
                     canvasObjects.splice(i, 1);
                     canvasObjects.push(obj);
@@ -702,7 +686,6 @@
             const obj = selectedObject;
 
             if (isResizing) {
-                // Tăng kích thước (chỉ tăng width, height tự động theo tỉ lệ)
                 let newWidth = obj.width + dx;
                 if (newWidth < 20) newWidth = 20; 
 
@@ -713,7 +696,6 @@
                         obj.height = newWidth * aspectRatio;
                     }
                 } else if (obj.type === 'text') {
-                    // Resize cho text là thay đổi fontSize
                     let newSize = obj.fontSize + dy / 2; 
                     if (newSize < 10) newSize = 10;
                     obj.fontSize = newSize; 
@@ -723,20 +705,14 @@
                 startY = mousePos.y;
 
             } else if (isRotating) {
-                // Logic xoay (Đã sửa lỗi tính toán góc xoay)
+                // Logic xoay (Fixed)
                 const centerX = obj.x + obj.width / 2;
                 const centerY = obj.y + obj.height / 2;
                 
                 const currentAngle = Math.atan2(mousePos.y - centerY, mousePos.x - centerX);
-                
-                // Tính góc bắt đầu (góc giữa điểm ban đầu và tâm)
                 const startPointAngle = Math.atan2(startY - centerY, startX - centerX);
                 
-                // Góc xoay mới = Góc hiện tại của đối tượng + (Góc chuột mới - Góc chuột cũ)
-                // Vì chúng ta đang cập nhật liên tục, nên chỉ cần tính độ lệch từ tâm đến chuột hiện tại
-                const newAngle = currentAngle - startPointAngle; 
-                
-                obj.angle = newAngle + lastAngle;
+                obj.angle = currentAngle - startPointAngle + lastAngle;
                 
             } else {
                 // Kéo
@@ -753,7 +729,6 @@
         function handleMouseUp() {
             if (controlsPanel.style.display === 'none') return;
             if (isRotating && selectedObject) {
-                // Cập nhật lastAngle để tính góc xoay tiếp theo
                 lastAngle = selectedObject.angle || 0; 
             }
             isDragging = false;
@@ -791,7 +766,7 @@
         
         function toggleDesignerControls(show) {
             if (show) {
-                // DESIGNER MODE: Hiển thị các nút thiết kế và chức năng chỉnh sửa
+                // DESIGNER MODE: Hiện đầy đủ
                 controlsPanel.style.display = 'block';
                 designerActionsTop.style.display = 'flex';
                 canvasHeader.textContent = "Khung Xem Trước Strip 4 Ảnh (Bấm chuột phải để Xóa đối tượng)";
@@ -802,7 +777,7 @@
                 exportFinalImageBtn.style.marginTop = '20px'; 
                 
             } else {
-                // VIEWER MODE: Ẩn tất cả các controls thiết kế
+                // VIEWER MODE: Ẩn controls
                 controlsPanel.style.display = 'none';
                 designerActionsTop.style.display = 'none'; 
                 canvasHeader.textContent = "Khung Ảnh Strip Photobooth Của Bạn";
@@ -860,7 +835,6 @@
             currentDesignId = null; 
             selectedObject = null;
             
-            // Xóa ảnh chụp khi tải mẫu mới (tránh ảnh cũ đè lên)
             capturedPhotos = [];
             currentPhotoIndex = 0;
             canvasObjects = [];
@@ -1007,7 +981,7 @@
                     const designData = JSON.parse(e.target.result);
                     if (designData && designData.settings) {
                         showDesign(false, designData);
-                        toggleDesignerControls(true); // Luôn bật designer khi tải từ file
+                        toggleDesignerControls(true); 
                     } else {
                         throw new Error("Dữ liệu JSON không hợp lệ.");
                     }
@@ -1023,7 +997,7 @@
             const savedDesigns = JSON.parse(localStorage.getItem('photoBoothDesigns') || '[]');
             if (savedDesigns[index]) {
                 showDesign(false, savedDesigns[index]);
-                toggleDesignerControls(true); // Luôn bật designer khi tải từ thư viện
+                toggleDesignerControls(true); 
             } else {
                 alert("Không tìm thấy thiết kế này.");
             }
@@ -1075,7 +1049,6 @@
             };
 
             const jsonString = JSON.stringify(designDataToShare);
-            // Sửa lỗi Base64 Encoding/Decoding: dùng btoa/atob và encodeURIComponent/decodeURIComponent
             const encodedDesign = btoa(unescape(encodeURIComponent(jsonString)));
             const shareLink = `${window.location.href.split('#')[0]}#${encodedDesign}`;
             
@@ -1208,7 +1181,7 @@
         canvas.addEventListener('mouseout', handleMouseUp); 
 
 
-        // LOGIC TẢI THIẾT KẾ TỪ BASE64/URL HASH (Đã sửa lỗi không vào Viewer Mode)
+        // LOGIC TẢI THIẾT KẾ TỪ BASE64/URL HASH (ĐÃ FIX TRIỆT ĐỂ LỖI KHÔNG VÀO VIEWER MODE)
         window.onload = () => {
             const hashValue = window.location.hash.substring(1);
             let designLoadedFromHash = false; 
@@ -1221,14 +1194,14 @@
                     
                     if (designData && designData.settings) {
                         showDesign(false, designData);
-                        toggleDesignerControls(false); 
+                        toggleDesignerControls(false); // Kích hoạt Viewer Mode
                         designLoadedFromHash = true;
                     } else {
                         console.error("Lỗi: Dữ liệu hash Base64 không hợp lệ.");
                     }
 
                 } catch (e) {
-                    // 2. Thử kiểm tra Local Storage (chỉ giữ lại cho mục đích dự phòng, không phải cách chia sẻ chính)
+                    // Dự phòng cho trường hợp link hash cũ (ít khả năng xảy ra)
                     const allDesigns = JSON.parse(localStorage.getItem('photoBoothDesigns') || '[]');
                     const sharedDesign = allDesigns.find(d => d.id === hashValue);
                     if (sharedDesign) {
