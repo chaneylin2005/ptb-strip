@@ -1,232 +1,4 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Photo Booth Strip Designer Tùy Chỉnh (Phiên bản Đầy đủ - Có Google Fonts)</title>
-    
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Montserrat:ital,wght@0,400;0,700;1,400&family=Pacifico&family=Pinyon+Script&display=swap" rel="stylesheet">
-    
-    <script>
-        if (window.location.hash.substring(1)) {
-            document.documentElement.classList.add('viewer-active');
-        }
-    </script>
-    <style>
-        /* ==================== CSS CHUNG ==================== */
-        body { font-family: 'Montserrat', sans-serif; margin: 0; padding: 0; background-color: #f4f4f9; color: #333; }
-        header { background-color: #007bff; color: white; padding: 20px; text-align: center; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); }
-        button, .primary-action, .secondary-action { border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; transition: background-color 0.3s; width: 100%; margin-top: 5px; }
-        .primary-action { background-color: #28a745; color: white; font-size: 1.1em; margin-top: 20px; }
-        .primary-action:hover { background-color: #1e7e34; }
-        .secondary-action { background-color: #6c757d; color: white; }
-        .secondary-action:hover { background-color: #5a6268; }
-        .alert-message { background-color: #fff3cd; color: #856404; padding: 10px; border: 1px solid #ffeeba; border-radius: 4px; margin-bottom: 20px; text-align: center; }
-
-        /* ==================== CHẾ ĐỘ THIẾT KẾ (DESIGN MODE) ==================== */
-        #design-view { display: flex; max-width: 1200px; margin: 20px auto; padding: 0 15px; }
-        .design-area { flex: 2; padding-right: 30px; text-align: center; }
-        #photoStripCanvas { border: 5px dashed #ccc; background-color: white; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); max-width: 100%; height: auto; display: block; margin: 20px auto; cursor: grab; }
-        .webcam-preview { margin-top: 20px; }
-        #webcamFeed { width: 300px; height: auto; border: 2px solid #333; display: block; margin: 10px auto; }
-        .controls-panel { flex: 1; background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); }
-        .control-group { border: 1px solid #ddd; padding: 15px; margin-bottom: 20px; border-radius: 4px; }
-        legend { font-weight: bold; color: #007bff; padding: 0 10px; }
-        .control-group > div { margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
-        .control-group > div:not(:last-child) { margin-bottom: 10px; }
-        
-        /* Input styling */
-        input[type="range"] { flex-grow: 1; margin-left: 10px; }
-        .control-group label { display: block; margin-bottom: 5px; }
-        .control-group input[type="text"], 
-        .control-group input[type="number"],
-        .control-group input[type="color"], 
-        .control-group select { flex-grow: 1; margin-left: 10px; padding: 5px; border: 1px solid #ccc; border-radius: 4px; }
-        .control-group input[type="color"] { width: 40px; height: 30px; padding: 0; }
-        
-        /* Specific elements */
-        #capturePhotoBtn { background-color: #ffc107; color: #333; }
-        #capturePhotoBtn:hover { background-color: #e0a800; }
-        #stickerLibrary { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; margin-bottom: 15px; }
-        .predefined-sticker { width: 40px; height: 40px; background-color: #eee; font-size: 1.2em; padding: 0; }
-        #newDesignBtnDesign { background-color: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
-        #newDesignBtnDesign:hover { background-color: #0056b3; }
-        
-        /* Font Previews (vẫn giữ các class) */
-        .font-arial { font-family: Arial, sans-serif; }
-        .font-dancing { font-family: 'Dancing Script', cursive; }
-        .font-pacifico { font-family: 'Pacifico', cursive; }
-        .font-pinyon { font-family: 'Pinyon Script', cursive; }
-        .font-montserrat { font-family: 'Montserrat', sans-serif; }
-
-
-        /* ==================== CHẾ ĐỘ THƯ VIỆN (LIBRARY MODE) ==================== */
-        #library-view { display: none; padding: 20px; text-align: center; }
-        .design-list { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; margin-top: 30px; }
-        .design-card { background-color: white; border: 1px solid #ddd; border-radius: 8px; padding: 15px; width: 280px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05); }
-        .design-card h3 { color: #007bff; margin-top: 0; }
-        .design-card p { font-size: 0.9em; color: #666; }
-        .action-group button { margin-top: 10px; padding: 8px 15px; width: 48%; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.3s; }
-        .load-btn { background-color: #28a745; color: white; }
-        .delete-btn { background-color: #dc3545; color: white; margin-left: 5px; }
-        #newDesignBtnLib { background-color: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin-bottom: 20px; }
-        #newDesignBtnLib:hover { background-color: #0056b3; }
-        
-        /* Responsive */
-        @media (max-width: 768px) {
-            #design-view { flex-direction: column; }
-            .design-area { padding-right: 0; padding-bottom: 20px; }
-            .design-area > div { display: flex; flex-direction: row; gap: 10px; }
-            .design-area button { flex-grow: 1; }
-        }
-
-        /* ==================== CSS CONTROL VIEWER MODE ==================== */
-        .viewer-active #controls-panel,
-        .viewer-active #designer-actions-top {
-            display: none !important; /* Buộc ẩn thanh điều khiển và nút "Quay lại Thư Viện" */
-        }
-        
-        .viewer-active #main-title {
-            /* Thay đổi tiêu đề trang */
-            content: "Sử Dụng Mẫu Photobooth";
-        }
-        
-        .viewer-active #canvas-header {
-            /* Thay đổi tiêu đề canvas */
-            content: "Khung Ảnh Strip Photobooth Của Bạn";
-        }
-        
-        .viewer-active #viewerImageUploadLabel {
-            display: block !important; /* Buộc hiển thị nút tải ảnh cho người dùng Viewer */
-        }
-        
-    </style>
-</head>
-<body>
-
-    <header>
-        <h1 id="main-title">Tạo Strip Photo Booth Cá Nhân</h1>
-    </header>
-
-    <div id="design-view">
-        <section class="design-area">
-            <div id="designer-actions-top" style="display: flex; gap: 10px; margin-bottom: 10px;">
-                <button id="toggleViewBtn" class="secondary-action" style="width: auto;" onclick="showLibrary()">
-                    ← Quay lại Thư Viện Thiết Kế
-                </button>
-                <button id="newDesignBtnDesign" class="secondary-action" style="width: auto; flex-grow: 1; background-color: #007bff;" onclick="showDesign(true)">
-                    **+ Tạo Thiết Kế Mới**
-                </button>
-            </div>
-            <h2 id="canvas-header">Khung Xem Trước Strip 4 Ảnh (Bấm chuột phải để Xóa đối tượng)</h2>
-            <canvas id="photoStripCanvas" width="600" height="1800">
-                Trình duyệt của bạn không hỗ trợ Canvas.
-            </canvas>
-            <div class="webcam-preview">
-                <video id="webcamFeed" autoplay></video>
-                <button id="capturePhotoBtn">Chụp Ảnh (1/4)</button>
-                
-                <label for="viewerImageUpload" id="viewerImageUploadLabel" class="secondary-action" style="display: none; text-align: center; margin-bottom: 5px; background-color: #17a2b8; color: white; ">
-                    **Hoặc Tải Ảnh Lên Để Thay Thế**
-                </label>
-                <input type="file" id="viewerImageUpload" accept="image/*" style="display: none;">
-            </div>
-        </section>
-
-        <aside id="controls-panel" class="controls-panel">
-            <h2>🛠️ Công Cụ Thiết Kế</h2>
-
-            <fieldset class="control-group">
-                <legend>Tùy Chỉnh Cơ Bản</legend>
-                <div><label for="frameColor">Màu Khung/Viền:</label><input type="color" id="frameColor" value="#000000"></div>
-                <div><label for="frameThickness">Độ Dày Khung (px):</label><input type="range" id="frameThickness" min="5" max="100" value="25"><span id="thicknessValue">25px</span></div>
-                <div><label for="photoSizeScale">Tỷ Lệ Kích Cỡ Ảnh:</label><input type="range" id="photoSizeScale" min="0.5" max="1.5" step="0.05" value="1.0"><span id="sizeValue">100%</span></div>
-                <div><label for="stripWidth">Độ Rộng Strip (px):</label><input type="number" id="stripWidth" value="600" min="100"></div>
-                <div><label for="stripHeight">Độ Dài Strip (px):</label><input type="number" id="stripHeight" value="1800" min="300"></div>
-            </fieldset>
-
-            <fieldset class="control-group">
-                <legend>Tải Lên Ảnh Cá Nhân/Idol</legend>
-                <div><input type="file" id="imageUpload" accept="image/*" style="width: 60%;"><button id="addImageToStripBtn" style="width: 40%; margin-top: 0;">Thêm Ảnh</button></div>
-            </fieldset>
-            
-            <fieldset class="control-group">
-                <legend>Thêm Chữ / Chữ Ký</legend>
-                <div><label for="textInput">Văn bản:</label><input type="text" id="textInput" placeholder="Nhập chữ/chữ ký"></div>
-                <div>
-                    <label for="fontSelect">Font:</label>
-                    <select id="fontSelect">
-                        <option value="Montserrat" class="font-montserrat">Montserrat (Hiện đại)</option>
-                        <option value="Arial" class="font-arial">Arial (Cơ bản)</option>
-                        <option value="Dancing Script" class="font-dancing">Dancing Script (Viết tay)</option>
-                        <option value="Pacifico" class="font-pacifico">Pacifico (Cổ điển)</option>
-                        <option value="Pinyon Script" class="font-pinyon">Pinyon Script (Nghệ thuật)</option>
-                    </select>
-                </div>
-                <div><label for="textColor">Màu chữ:</label><input type="color" id="textColor" value="#000000"></div>
-                <div><label for="fontSize">Kích thước:</label><input type="range" id="fontSize" min="10" max="100" value="40"><span id="fontSizeValue">40px</span></div>
-                <button id="addTextToStripBtn">Thêm Chữ</button>
-            </fieldset>
-
-            <fieldset class="control-group">
-                <legend>Thư Viện Sticker</legend>
-                <div id="stickerLibrary">
-                    <button class="predefined-sticker" data-sticker-url="https://raw.githubusercontent.com/google/material-design-icons/master/png/social/star_black/1x_web/baseline_star_black_24dp.png">⭐</button>
-                    <button class="predefined-sticker" data-sticker-url="https://www.freeiconspng.com/uploads/red-heart-png-27.png">💖</button>
-                    <button class="predefined-sticker" data-sticker-url="https://cdn-icons-png.flaticon.com/512/32/32185.png">🧢</button>
-                    <button class="predefined-sticker" data-sticker-url="https://www.freeiconspng.com/uploads/glasses-png-22.png">🕶️</button>
-                </div>
-                <div><label>Tải Thêm Sticker Mới (.png/jpg):</label><input type="file" id="customStickerUpload" accept="image/*" style="width: 60%;"><button id="addCustomStickerBtn" style="width: 40%; margin-top: 0;">Thêm Sticker</button></div>
-            </fieldset>
-            
-            <fieldset class="control-group">
-                <legend>Điều Chỉnh Lớp (Layer)</legend>
-                <div>
-                    <button id="bringForwardBtn" class="secondary-action" style="width: 49%; background-color: #ffc107; color: #333; margin-top: 0;">Lên một lớp (⬆)</button>
-                    <button id="sendBackwardBtn" class="secondary-action" style="width: 49%; background-color: #17a2b8; margin-top: 0;">Xuống một lớp (⬇)</button>
-                </div>
-                <div>
-                    <button id="bringToFrontBtn" class="primary-action" style="width: 49%; margin-top: 5px;">Lên trên cùng (⏫)</button>
-                    <button id="sendToBackBtn" class="secondary-action" style="width: 49%; background-color: #dc3545; margin-top: 5px;">Xuống dưới cùng (⏬)</button>
-                </div>
-                <div class="alert-message" id="layerControlAlert" style="display: none; margin-top: 10px; margin-bottom: 0;">
-                    Vui lòng chọn một đối tượng (ảnh, sticker, chữ) trên canvas.
-                </div>
-            </fieldset>
-            <fieldset class="control-group">
-                <legend>Lưu và Chia Sẻ Mẫu</legend>
-                
-                <label for="designUpload" class="secondary-action" style="display: block; text-align: center; margin-bottom: 10px; background-color: #6c757d; color: white;">
-                    **Tải Mẫu Thiết Kế (File .json)**
-                </label>
-                <input type="file" id="designUpload" accept=".json" style="display: none;">
-                
-                <button id="saveDesignBtn" class="primary-action" style="background-color: #007bff;">Lưu Thiết Kế & Tải File .json</button>
-                <button id="exportShareLinkBtn" class="secondary-action">Xuất Link Chia Sẻ (Đã nhúng dữ liệu)</button>
-            </fieldset>
-
-            <button id="exportFinalImageBtn" class="primary-action">Xuất Strip Ảnh Hoàn Chỉnh (Tải về)</button>
-        </aside>
-    </div>
-
-    <div id="library-view">
-        <h1>📚 Thư Viện Mẫu Thiết Kế Của Tôi</h1>
-        <div class="alert-message">
-            **LƯU Ý:** Bạn có thể chia sẻ mẫu thiết kế bằng **Link Chia Sẻ** (yêu cầu host web như GitHub Pages) hoặc chia sẻ file **.json** (có thể dùng cục bộ).
-        </div>
-        <button id="newDesignBtnLib" onclick="showDesign(true)">+ Tạo Mẫu Thiết Kế Mới</button>
-        <div id="designList" class="design-list">
-            <p>Đang tải thư viện...</p>
-        </div>
-    </div>
-
-    <footer>
-        <p>&copy; 2025 Photo Booth Designer Của Bạn</p>
-    </footer>
-
-    <script>
+<script>
         // Khai báo các biến DOM và hằng số
         const designView = document.getElementById('design-view');
         const libraryView = document.getElementById('library-view');
@@ -814,7 +586,7 @@
                 viewerImageUploadLabel.style.display = 'block'; 
                 exportFinalImageBtn.style.marginTop = '5px'; 
 
-                // Giữ nguyên class viewer-active, JS chỉ cập nhật nội dung
+                // Giữ nguyên class viewer-active
             }
         }
 
@@ -874,7 +646,6 @@
                 photoSizeScaleInput.value = '1.0';
                 stripWidthInput.value = '600';
                 stripHeightInput.value = '1800';
-                
                 currentDesignId = Math.random().toString(36).substring(2, 9);
             }
 
@@ -887,25 +658,27 @@
                 stripHeightInput.value = designData.settings.stripHeight || '1800';
                 
                 
-                if (designData.photos && designData.photos.length) {
-                    designData.photos.forEach((photoData, index) => {
-                        if (photoData && photoData.src) {
-                            const img = new Image();
-                            img.onload = () => {
-                                capturedPhotos[index] = { index: index, image: img, src: photoData.src };
-                                currentPhotoIndex = Math.max(currentPhotoIndex, index + 1);
-                                updateCaptureButtonText();
-                                drawFrame();
-                            };
-                            img.crossOrigin = "Anonymous";
-                            img.src = photoData.src;
-                        }
-                    });
-                }
+                const photosToLoad = designData.photos || [];
+                const objectsToLoad = designData.objects || [];
                 
+                // Tải Photos
+                photosToLoad.forEach((photoData, index) => {
+                    if (photoData && photoData.src) {
+                        const img = new Image();
+                        img.onload = () => {
+                            capturedPhotos[index] = { index: index, image: img, src: photoData.src };
+                            currentPhotoIndex = Math.max(currentPhotoIndex, index + 1);
+                            updateCaptureButtonText();
+                            drawFrame();
+                        };
+                        img.crossOrigin = "Anonymous";
+                        img.src = photoData.src;
+                    }
+                });
                 
+                // Tải Objects
                 let loadCount = 0;
-                const totalObjects = designData.objects.length;
+                const totalObjects = objectsToLoad.length;
                 
                 const finishLoading = () => {
                     loadCount++;
@@ -917,7 +690,11 @@
                     }
                 };
 
-                designData.objects.forEach(objData => {
+                if (totalObjects === 0) { 
+                    finishLoading();
+                }
+
+                objectsToLoad.forEach(objData => {
                     if (objData.type === 'text') {
                         canvasObjects.push(objData);
                         finishLoading();
@@ -1210,41 +987,42 @@
         canvas.addEventListener('mouseout', handleMouseUp); 
 
 
-        // LOGIC TẢI THIẾT KẾ TỪ BASE64/URL HASH
+        // LOGIC TẢI THIẾT KẾ TỪ BASE64/URL HASH (FIX TRIỆT ĐỂ LỖI QUAY VỀ TRANG CHỦ)
         window.onload = () => {
             const hashValue = window.location.hash.substring(1);
-            let designLoadedFromHash = false; 
             
-            if (hashValue) {
-                try {
-                    // 1. CỐ GẮNG GIẢI MÃ CHUỖI BASE64
-                    const decodedJsonString = decodeURIComponent(escape(atob(hashValue)));
-                    const designData = JSON.parse(decodedJsonString);
-                    
-                    if (designData && designData.settings) {
-                        showDesign(false, designData);
-                        toggleDesignerControls(false); // Kích hoạt Viewer Mode
-                        designLoadedFromHash = true;
-                    } else {
-                        console.error("Lỗi: Dữ liệu hash Base64 không hợp lệ.");
-                    }
-
-                } catch (e) {
-                    // Dự phòng cho trường hợp link hash cũ (ít khả năng xảy ra)
-                    const allDesigns = JSON.parse(localStorage.getItem('photoBoothDesigns') || '[]');
-                    const sharedDesign = allDesigns.find(d => d.id === hashValue);
-                    if (sharedDesign) {
-                        showDesign(false, sharedDesign);
-                        toggleDesignerControls(false); 
-                        designLoadedFromHash = true;
-                    }
-                    console.error("Lỗi khi tải hoặc giải mã link chia sẻ:", e);
-                }
-            }
-            
-            // 3. Chỉ hiển thị thư viện/Designer Mode nếu KHÔNG TẢI được thiết kế từ hash.
-            if (!designLoadedFromHash) {
+            // 1. Nếu KHÔNG có hash, tải thư viện và KẾT THÚC
+            if (!hashValue) {
                 showLibrary();
+                return;
+            }
+
+            // 2. Nếu CÓ hash, BỎ QUA showLibrary() và CHỈ xử lý Viewer Mode
+            try {
+                const decodedJsonString = decodeURIComponent(escape(atob(hashValue)));
+                const designData = JSON.parse(decodedJsonString);
+                
+                if (designData && designData.settings) {
+                    showDesign(false, designData);
+                    toggleDesignerControls(false); 
+                } else {
+                    // Dữ liệu hash hợp lệ nhưng JSON hỏng (ví dụ: thiếu settings)
+                    throw new Error("Dữ liệu thiết kế bị hỏng. Vui lòng tạo link mới.");
+                }
+
+            } catch (e) {
+                // Xử lý LỖI TẢI: Hiển thị một khung ảnh trống với thông báo lỗi
+                console.error("LỖI TẢI THIẾT KẾ CHIA SẺ:", e);
+                
+                // Hiển thị khung ảnh trống (Viewer Mode)
+                showDesign(false, { 
+                    settings: { frameColor: '#000000', frameThickness: '25', photoSizeScale: '1.0', stripWidth: '600', stripHeight: '1800' }, 
+                    photos: [], 
+                    objects: [] 
+                });
+                toggleDesignerControls(false); 
+
+                alert(`❌ Lỗi tải mẫu thiết kế chia sẻ: ${e.message || 'Lỗi không xác định'}. Vui lòng yêu cầu người gửi tạo lại link mới.`);
             }
         };
     </script>
