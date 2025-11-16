@@ -62,579 +62,561 @@
         <p>&copy; 2025 Photo Booth Designer Của Bạn</p>
     </footer>
 
-    <script>
-        // --- HÀM HỖ TRỢ URL-SAFE BASE64 (SỬA LỖI VIEWER ATOM) ---
-        function urlSafeBase64Decode(str) {
-            str = str.replace(/-/g, '+').replace(/_/g, '/');
-            // Thêm padding cho atob()
-            while (str.length % 4) {
-                str += '=';
-            }
-            return str;
+   <script>
+    // --- HÀM HỖ TRỢ URL-SAFE BASE64 (ĐẶT Ở ĐÂY ĐỂ ĐẢM BẢO PHẠM VI TOÀN CỤC) ---
+    function urlSafeBase64Decode(str) {
+        str = str.replace(/-/g, '+').replace(/_/g, '/');
+        while (str.length % 4) {
+            str += '=';
         }
-        // ------------------------------------------
+        return str;
+    }
+    // ------------------------------------------
 
-        // --- KHAI BÁO BIẾN CHO VIEWER MODE ---
-        const canvas = document.getElementById('photoStripCanvas');
-        const ctx = canvas.getContext('2d');
-        const webcamFeed = document.getElementById('webcamFeed');
-        const capturePhotoBtn = document.getElementById('capturePhotoBtn');
-        const exportFinalImageBtn = document.getElementById('exportFinalImageBtn');
-        const viewerImageUpload = document.getElementById('viewerImageUpload');
+    // --- KHAI BÁO BIẾN CHO VIEWER MODE ---
+    const canvas = document.getElementById('photoStripCanvas');
+    const ctx = canvas.getContext('2d');
+    const webcamFeed = document.getElementById('webcamFeed');
+    const capturePhotoBtn = document.getElementById('capturePhotoBtn');
+    const exportFinalImageBtn = document.getElementById('exportFinalImageBtn');
+    const viewerImageUpload = document.getElementById('viewerImageUpload');
 
-        const MAX_PHOTOS = 4;
-        let capturedPhotos = []; 
-        let currentPhotoIndex = 0;
-        let canvasObjects = []; 
+    const MAX_PHOTOS = 4;
+    let capturedPhotos = []; 
+    let currentPhotoIndex = 0;
+    let canvasObjects = []; 
 
-        // --- BIẾN ĐIỀU KHIỂN TƯƠNG TÁC ---
-        let isDragging = false;
-        let isResizing = false;
-        let isRotating = false; 
-        let selectedObject = null;
-        let startX;
-        let startY;
-        let lastAngle = 0; 
-        
-        let currentDesignId = null;
-        let frameColor = '#000000';
-        let frameThickness = 25;
-        let photoSizeScale = 1.0;
-        let stripWidth = 600;
-        let stripHeight = 1800;
-        
-        
-        // =======================================================
-        // PHẦN 1: HÀM VẼ VÀ CHỤP ẢNH
-        // =======================================================
+    // --- BIẾN ĐIỀU KHIỂN TƯƠNG TÁC ---
+    let isDragging = false;
+    let isResizing = false;
+    let isRotating = false; 
+    let selectedObject = null;
+    let startX;
+    let startY;
+    let lastAngle = 0; 
+    
+    let currentDesignId = null;
+    let frameColor = '#000000';
+    let frameThickness = 25;
+    let photoSizeScale = 1.0;
+    let stripWidth = 600;
+    let stripHeight = 1800;
+    
+    
+    // =======================================================
+    // PHẦN 1: HÀM VẼ VÀ CHỤP ẢNH
+    // =======================================================
 
-        async function startWebcam() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
-                webcamFeed.srcObject = stream;
-                webcamFeed.style.display = 'block';
-                capturePhotoBtn.style.display = 'block';
-            } catch (error) {
-                console.error("Không thể truy cập webcam:", error);
-                webcamFeed.style.display = 'none';
-                capturePhotoBtn.style.display = 'none';
-                alert("Không thể truy cập Webcam. Vui lòng sử dụng tính năng 'Tải Ảnh Lên Để Thay Thế'.");
-            }
+    async function startWebcam() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+            webcamFeed.srcObject = stream;
+            webcamFeed.style.display = 'block';
+            capturePhotoBtn.style.display = 'block';
+        } catch (error) {
+            console.error("Không thể truy cập webcam:", error);
+            webcamFeed.style.display = 'none';
+            capturePhotoBtn.style.display = 'none';
+            alert("Không thể truy cập Webcam. Vui lòng sử dụng tính năng 'Tải Ảnh Lên Để Thay Thế'.");
         }
-        
-        function updateCaptureButtonText() {
-            if (currentPhotoIndex < MAX_PHOTOS) {
-                capturePhotoBtn.textContent = `Chụp Ảnh (${currentPhotoIndex + 1}/${MAX_PHOTOS})`;
-                capturePhotoBtn.disabled = false;
-            } else {
-                capturePhotoBtn.textContent = `HOÀN TẤT CHỤP! (Sẵn sàng Xuất Ảnh)`;
-                capturePhotoBtn.disabled = true;
-            }
+    }
+    
+    function updateCaptureButtonText() {
+        if (currentPhotoIndex < MAX_PHOTOS) {
+            capturePhotoBtn.textContent = `Chụp Ảnh (${currentPhotoIndex + 1}/${MAX_PHOTOS})`;
+            capturePhotoBtn.disabled = false;
+        } else {
+            capturePhotoBtn.textContent = `HOÀN TẤT CHỤP! (Sẵn sàng Xuất Ảnh)`;
+            capturePhotoBtn.disabled = true;
         }
+    }
 
-        function capturePhoto() {
-            if (currentPhotoIndex >= MAX_PHOTOS) return;
-            if (!webcamFeed.srcObject || webcamFeed.paused) {
-                alert("Webcam chưa hoạt động hoặc bị tạm dừng. Vui lòng kiểm tra lại hoặc tải ảnh lên.");
-                return;
-            }
-
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = webcamFeed.videoWidth;
-            tempCanvas.height = webcamFeed.videoHeight;
-            const tempCtx = tempCanvas.getContext('2d');
-            
-            tempCtx.drawImage(webcamFeed, 0, 0, tempCanvas.width, tempCanvas.height);
-            
-            const capturedImage = new Image();
-            capturedImage.onload = () => {
-                capturedPhotos[currentPhotoIndex] = { index: currentPhotoIndex, image: capturedImage, src: tempCanvas.toDataURL('image/png') };
-                currentPhotoIndex++;
-                updateCaptureButtonText();
-                drawFrame(); 
-            };
-            capturedImage.onerror = (e) => {
-                console.error("Lỗi khi tải ảnh đã chụp:", e);
-                alert("Không thể xử lý ảnh đã chụp. Vui lòng thử lại.");
-            };
-            capturedImage.src = tempCanvas.toDataURL('image/png');
+    function capturePhoto() {
+        if (currentPhotoIndex >= MAX_PHOTOS) return;
+        if (!webcamFeed.srcObject || webcamFeed.paused) {
+            alert("Webcam chưa hoạt động hoặc bị tạm dừng. Vui lòng kiểm tra lại hoặc tải ảnh lên.");
+            return;
         }
 
-        function exportFinalImage() {
-            // Loại bỏ viền chọn trước khi xuất
-            const tempSelectedObject = selectedObject;
-            selectedObject = null;
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = webcamFeed.videoWidth;
+        tempCanvas.height = webcamFeed.videoHeight;
+        const tempCtx = tempCanvas.getContext('2d');
+        
+        tempCtx.drawImage(webcamFeed, 0, 0, tempCanvas.width, tempCanvas.height);
+        
+        const capturedImage = new Image();
+        capturedImage.onload = () => {
+            capturedPhotos[currentPhotoIndex] = { index: currentPhotoIndex, image: capturedImage, src: tempCanvas.toDataURL('image/png') };
+            currentPhotoIndex++;
+            updateCaptureButtonText();
             drawFrame(); 
+        };
+        capturedImage.onerror = (e) => {
+            console.error("Lỗi khi tải ảnh đã chụp:", e);
+            alert("Không thể xử lý ảnh đã chụp. Vui lòng thử lại.");
+        };
+        capturedImage.src = tempCanvas.toDataURL('image/png');
+    }
+
+    function drawFrame() {
+        canvas.width = stripWidth;
+        canvas.height = stripHeight;
+
+        const photoWidth = stripWidth - 2 * frameThickness;
+        const photoHeight = (stripHeight - (MAX_PHOTOS + 1) * frameThickness) / MAX_PHOTOS; 
+
+        ctx.clearRect(0, 0, stripWidth, stripHeight);
+        ctx.fillStyle = frameColor;
+        ctx.fillRect(0, 0, stripWidth, stripHeight);
+
+        if (photoWidth <= 0 || photoHeight <= 0) {
+            ctx.fillStyle = 'red';
+            ctx.textAlign = 'center';
+            ctx.font = '30px sans-serif';
+            ctx.fillText('LỖI KÍCH THƯỚC KHUNG!', stripWidth / 2, stripHeight / 2);
+            return;
+        }
+        
+        for (let i = 0; i < MAX_PHOTOS; i++) {
+            const x = frameThickness;
+            const y = frameThickness + i * (photoHeight + frameThickness); 
+
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(x, y, photoWidth, photoHeight);
+
+            if (capturedPhotos[i] && capturedPhotos[i].image) {
+                const img = capturedPhotos[i].image;
+                const imgAspectRatio = img.width / img.height;
+                const frameAspectRatio = photoWidth / photoHeight;
+
+                let finalDrawW, finalDrawH;
+                if (imgAspectRatio > frameAspectRatio) {
+                    finalDrawH = photoHeight;
+                    finalDrawW = photoHeight * imgAspectRatio;
+                } else {
+                    finalDrawW = photoWidth;
+                    finalDrawH = photoWidth / imgAspectRatio;
+                }
+
+                finalDrawW *= photoSizeScale;
+                finalDrawH *= photoSizeScale;
+
+                const drawX = x + (photoWidth - finalDrawW) / 2;
+                const drawY = y + (photoHeight - finalDrawH) / 2;
+                
+                ctx.drawImage(img, drawX, drawY, finalDrawW, finalDrawH);
+
+            } else {
+                ctx.fillStyle = 'gray';
+                ctx.font = '30px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(`Ảnh ${i + 1} CHƯA CHỤP`, x + photoWidth / 2, y + photoHeight / 2);
+            }
+        }
+        
+        // VẼ CÁC STICKER/TEXT (ĐÃ CÓ LOGIC HIỂN THỊ VIỀN KHI CHỌN)
+        canvasObjects.forEach(obj => {
+            ctx.save();
+            const centerX = obj.x + obj.width / 2;
+            const centerY = obj.y + obj.height / 2;
+            ctx.translate(centerX, centerY);
+            ctx.rotate(obj.angle || 0); 
+            ctx.translate(-centerX, -centerY); 
+
+            if (obj.type === 'image' || obj.type === 'sticker') {
+                // Đảm bảo chỉ vẽ nếu ảnh đã tải xong (Fix lỗi mất idol)
+                if (obj.image && obj.image.complete) { 
+                    ctx.drawImage(obj.image, obj.x, obj.y, obj.width, obj.height);
+                }
+            } else if (obj.type === 'text') {
+                ctx.font = `${obj.fontSize}px "${obj.fontFamily}", sans-serif`;
+                ctx.fillStyle = obj.textColor;
+                ctx.textAlign = 'center'; 
+                ctx.textBaseline = 'middle'; 
+                
+                const metrics = ctx.measureText(obj.text);
+                obj.width = metrics.width;
+                obj.height = obj.fontSize * 1.2; 
+                
+                ctx.fillText(obj.text, obj.x + obj.width / 2, obj.y + obj.height / 2); 
+            }
             
-            // Tải về file
-            const imageURL = canvas.toDataURL("image/png");
-            const link = document.createElement('a');
-            link.download = `photobooth-strip-${currentDesignId || Date.now()}.png`;
-            link.href = imageURL;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-            // Khôi phục viền chọn
-            selectedObject = tempSelectedObject;
-            drawFrame();
+            // VẼ VIỀN VÀ ĐIỂM ĐIỀU KHIỂN NẾU ĐƯỢC CHỌN
+            if (obj === selectedObject) {
+                ctx.strokeStyle = '#FF00FF'; 
+                ctx.lineWidth = 2;
+                ctx.strokeRect(obj.x, obj.y, obj.width, obj.height);
+                
+                const controlPointSize = 10;
+                
+                // Nút Resize (dưới phải)
+                ctx.fillStyle = '#00FFFF';
+                ctx.fillRect(obj.x + obj.width - controlPointSize / 2, 
+                             obj.y + obj.height - controlPointSize / 2, 
+                             controlPointSize, controlPointSize);
+                
+                // Nút Rotate (trên trái)
+                ctx.fillStyle = '#FF0000';
+                ctx.fillRect(obj.x - controlPointSize / 2, 
+                             obj.y - controlPointSize / 2, 
+                             controlPointSize, controlPointSize);
+            }
+            ctx.restore(); 
+        });
+    }
+
+    function exportFinalImage() {
+        const tempSelectedObject = selectedObject;
+        selectedObject = null;
+        drawFrame(); 
+        
+        const imageURL = canvas.toDataURL("image/png");
+        const link = document.createElement('a');
+        link.download = `photobooth-strip-${currentDesignId || Date.now()}.png`;
+        link.href = imageURL;
+        document.body.appendChild(link);
+        document.body.removeChild(link);
+        
+        selectedObject = tempSelectedObject;
+        drawFrame();
+    }
+
+    // =======================================================
+    // PHẦN 2: LOGIC TƯƠNG TÁC (KÉO, THẢ, RESIZE, ROTATE)
+    // =======================================================
+    
+    function getMousePos(e) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+            x: (e.clientX - rect.left) * (canvas.width / rect.width),
+            y: (e.clientY - rect.top) * (canvas.height / rect.height)
+        };
+    }
+
+    function isPointInObject(x, y, obj) {
+        const centerX = obj.x + obj.width / 2;
+        const centerY = obj.y + obj.height / 2;
+
+        const cos = Math.cos(-obj.angle || 0);
+        const sin = Math.sin(-obj.angle || 0);
+        
+        const rotatedX = cos * (x - centerX) - sin * (y - centerY) + centerX;
+        const rotatedY = sin * (x - centerX) + cos * (y - centerY) + centerY;
+
+        return rotatedX >= obj.x && rotatedX <= obj.x + obj.width &&
+               rotatedY >= obj.y && rotatedY <= obj.y + obj.height;
+    }
+
+    function checkRotatedHandle(x, y, obj, handleType) {
+        const controlPointSize = 10;
+        let handleX, handleY;
+
+        if (handleType === 'resize') {
+            handleX = obj.x + obj.width - controlPointSize / 2;
+            handleY = obj.y + obj.height - controlPointSize / 2;
+        } else if (handleType === 'rotate') {
+            handleX = obj.x - controlPointSize / 2;
+            handleY = obj.y - controlPointSize / 2;
+        } else {
+            return false;
         }
 
+        const centerX = obj.x + obj.width / 2;
+        const centerY = obj.y + obj.height / 2;
 
-        // =======================================================
-        // PHẦN 2: LOGIC VẼ KHUNG VÀ ĐỐI TƯỢNG (Đã fix lỗi mất ảnh)
-        // =======================================================
+        const cos = Math.cos(-obj.angle || 0);
+        const sin = Math.sin(-obj.angle || 0);
+
+        const rotatedMouseX = cos * (x - centerX) - sin * (y - centerY) + centerX;
+        const rotatedMouseY = sin * (x - centerX) + cos * (y - centerY) + centerY;
         
-        function drawFrame() {
-            canvas.width = stripWidth;
-            canvas.height = stripHeight;
+        return rotatedMouseX >= handleX - 5 && rotatedMouseX <= handleX + controlPointSize + 5 &&
+               rotatedMouseY >= handleY - 5 && rotatedMouseY <= handleY + controlPointSize + 5;
+    }
 
-            const photoWidth = stripWidth - 2 * frameThickness;
-            const photoHeight = (stripHeight - (MAX_PHOTOS + 1) * frameThickness) / MAX_PHOTOS; 
+    function isPointInResizeHandle(x, y, obj) {
+        return checkRotatedHandle(x, y, obj, 'resize');
+    }
 
-            ctx.clearRect(0, 0, stripWidth, stripHeight);
-            ctx.fillStyle = frameColor;
-            ctx.fillRect(0, 0, stripWidth, stripHeight);
+    function isPointInRotateHandle(x, y, obj) {
+        return checkRotatedHandle(x, y, obj, 'rotate');
+    }
 
-            if (photoWidth <= 0 || photoHeight <= 0) {
-                ctx.fillStyle = 'red';
-                ctx.textAlign = 'center';
-                ctx.font = '30px sans-serif';
-                ctx.fillText('LỖI KÍCH THƯỚC KHUNG!', stripWidth / 2, stripHeight / 2);
+    function handleMouseDown(e) {
+        const mousePos = getMousePos(e);
+        let foundObject = null;
+        isResizing = false;
+        isRotating = false;
+        if (e.button === 2) return; 
+        
+        selectedObject = null; 
+
+        for (let i = canvasObjects.length - 1; i >= 0; i--) {
+            const obj = canvasObjects[i];
+            
+            // Kiểm tra Rotate Handle
+            if (isPointInRotateHandle(mousePos.x, mousePos.y, obj)) {
+                selectedObject = obj;
+                isRotating = true;
+                isDragging = true; 
+                startX = mousePos.x;
+                startY = mousePos.y;
+                lastAngle = obj.angle || 0; 
+                drawFrame(); 
                 return;
             }
-            
-            // 1. Vẽ các khung ảnh chụp
-            for (let i = 0; i < MAX_PHOTOS; i++) {
-                const x = frameThickness;
-                const y = frameThickness + i * (photoHeight + frameThickness); 
 
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(x, y, photoWidth, photoHeight);
-
-                if (capturedPhotos[i] && capturedPhotos[i].image) {
-                    const img = capturedPhotos[i].image;
-                    const imgAspectRatio = img.width / img.height;
-                    const frameAspectRatio = photoWidth / photoHeight;
-
-                    // Tính toán Tỉ lệ để Fill (Cover)
-                    let finalDrawW, finalDrawH;
-                    if (imgAspectRatio > frameAspectRatio) {
-                        finalDrawH = photoHeight;
-                        finalDrawW = photoHeight * imgAspectRatio;
-                    } else {
-                        finalDrawW = photoWidth;
-                        finalDrawH = photoWidth / imgAspectRatio;
-                    }
-
-                    finalDrawW *= photoSizeScale;
-                    finalDrawH *= photoSizeScale;
-
-                    const drawX = x + (photoWidth - finalDrawW) / 2;
-                    const drawY = y + (photoHeight - finalDrawH) / 2;
-                    
-                    ctx.drawImage(img, drawX, drawY, finalDrawW, finalDrawH);
-
-                } else {
-                    ctx.fillStyle = 'gray';
-                    ctx.font = '30px sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(`Ảnh ${i + 1} CHƯA CHỤP`, x + photoWidth / 2, y + photoHeight / 2);
-                }
-            }
-            
-            // 2. VẼ CÁC STICKER/TEXT (Đã fix lỗi mất ảnh idol)
-            canvasObjects.forEach(obj => {
-                ctx.save();
-                const centerX = obj.x + obj.width / 2;
-                const centerY = obj.y + obj.height / 2;
-                ctx.translate(centerX, centerY);
-                ctx.rotate(obj.angle || 0); 
-                ctx.translate(-centerX, -centerY); 
-
-                if (obj.type === 'image' || obj.type === 'sticker') {
-                    // Đảm bảo chỉ vẽ nếu ảnh đã tải xong
-                    if (obj.image && obj.image.complete) { 
-                        ctx.drawImage(obj.image, obj.x, obj.y, obj.width, obj.height);
-                    }
-                } else if (obj.type === 'text') {
-                    ctx.font = `${obj.fontSize}px "${obj.fontFamily}", sans-serif`;
-                    ctx.fillStyle = obj.textColor;
-                    ctx.textAlign = 'center'; 
-                    ctx.textBaseline = 'middle'; 
-                    
-                    const metrics = ctx.measureText(obj.text);
-                    obj.width = metrics.width;
-                    obj.height = obj.fontSize * 1.2; 
-                    
-                    ctx.fillText(obj.text, obj.x + obj.width / 2, obj.y + obj.height / 2); 
-                }
-                
-                // VẼ VIỀN VÀ ĐIỂM ĐIỀU KHIỂN NẾU ĐƯỢC CHỌN (Cho phép kéo, resize, rotate)
-                if (obj === selectedObject) {
-                    ctx.strokeStyle = '#FF00FF'; 
-                    ctx.lineWidth = 2;
-                    ctx.strokeRect(obj.x, obj.y, obj.width, obj.height);
-                    
-                    const controlPointSize = 10;
-                    
-                    // Nút Resize (dưới phải)
-                    ctx.fillStyle = '#00FFFF';
-                    ctx.fillRect(obj.x + obj.width - controlPointSize / 2, 
-                                 obj.y + obj.height - controlPointSize / 2, 
-                                 controlPointSize, controlPointSize);
-                    
-                    // Nút Rotate (trên trái)
-                    ctx.fillStyle = '#FF0000';
-                    ctx.fillRect(obj.x - controlPointSize / 2, 
-                                 obj.y - controlPointSize / 2, 
-                                 controlPointSize, controlPointSize);
-                }
-                ctx.restore(); 
-            });
-        }
-
-
-        // =======================================================
-        // PHẦN 3: LOGIC TƯƠNG TÁC (KÉO, THẢ, RESIZE, ROTATE)
-        // =======================================================
-        
-        function getMousePos(e) {
-            const rect = canvas.getBoundingClientRect();
-            return {
-                x: (e.clientX - rect.left) * (canvas.width / rect.width),
-                y: (e.clientY - rect.top) * (canvas.height / rect.height)
-            };
-        }
-        
-        function isPointInObject(x, y, obj) {
-            const centerX = obj.x + obj.width / 2;
-            const centerY = obj.y + obj.height / 2;
-
-            const cos = Math.cos(-obj.angle || 0);
-            const sin = Math.sin(-obj.angle || 0);
-            
-            const rotatedX = cos * (x - centerX) - sin * (y - centerY) + centerX;
-            const rotatedY = sin * (x - centerX) + cos * (y - centerY) + centerY;
-
-            return rotatedX >= obj.x && rotatedX <= obj.x + obj.width &&
-                   rotatedY >= obj.y && rotatedY <= obj.y + obj.height;
-        }
-
-        function checkRotatedHandle(x, y, obj, handleType) {
-            const controlPointSize = 10;
-            let handleX, handleY;
-
-            if (handleType === 'resize') {
-                handleX = obj.x + obj.width - controlPointSize / 2;
-                handleY = obj.y + obj.height - controlPointSize / 2;
-            } else if (handleType === 'rotate') {
-                handleX = obj.x - controlPointSize / 2;
-                handleY = obj.y - controlPointSize / 2;
-            } else {
-                return false;
-            }
-
-            const centerX = obj.x + obj.width / 2;
-            const centerY = obj.y + obj.height / 2;
-
-            const cos = Math.cos(-obj.angle || 0);
-            const sin = Math.sin(-obj.angle || 0);
-
-            const rotatedMouseX = cos * (x - centerX) - sin * (y - centerY) + centerX;
-            const rotatedMouseY = sin * (x - centerX) + cos * (y - centerY) + centerY;
-            
-            return rotatedMouseX >= handleX - 5 && rotatedMouseX <= handleX + controlPointSize + 5 &&
-                   rotatedMouseY >= handleY - 5 && rotatedMouseY <= handleY + controlPointSize + 5;
-        }
-
-        function isPointInResizeHandle(x, y, obj) {
-            return checkRotatedHandle(x, y, obj, 'resize');
-        }
-
-        function isPointInRotateHandle(x, y, obj) {
-            return checkRotatedHandle(x, y, obj, 'rotate');
-        }
-
-        function handleMouseDown(e) {
-            const mousePos = getMousePos(e);
-            let foundObject = null;
-            isResizing = false;
-            isRotating = false;
-            if (e.button === 2) return; 
-            
-            selectedObject = null; 
-
-            for (let i = canvasObjects.length - 1; i >= 0; i--) {
-                const obj = canvasObjects[i];
-                
-                // Kiểm tra Rotate Handle
-                if (isPointInRotateHandle(mousePos.x, mousePos.y, obj)) {
-                    selectedObject = obj;
-                    isRotating = true;
-                    isDragging = true; 
-                    startX = mousePos.x;
-                    startY = mousePos.y;
-                    lastAngle = obj.angle || 0; 
-                    drawFrame(); 
-                    return;
-                }
-
-                // Kiểm tra Resize Handle
-                if (isPointInResizeHandle(mousePos.x, mousePos.y, obj)) {
-                    selectedObject = obj;
-                    isResizing = true;
-                    isDragging = true;
-                    startX = mousePos.x;
-                    startY = mousePos.y;
-                    drawFrame();
-                    return;
-                }
-
-                // Kiểm tra kéo đối tượng
-                if (isPointInObject(mousePos.x, mousePos.y, obj)) {
-                    // Đẩy đối tượng lên trên cùng (Z-Index)
-                    canvasObjects.splice(i, 1);
-                    canvasObjects.push(obj);
-                    foundObject = obj;
-                    break;
-                }
-            }
-            
-            if (foundObject) {
-                selectedObject = foundObject;
+            // Kiểm tra Resize Handle
+            if (isPointInResizeHandle(mousePos.x, mousePos.y, obj)) {
+                selectedObject = obj;
+                isResizing = true;
                 isDragging = true;
                 startX = mousePos.x;
                 startY = mousePos.y;
-                drawFrame(); 
-            } else {
-                selectedObject = null;
                 drawFrame();
-            }
-        }
-
-        function handleMouseMove(e) {
-            if (!isDragging || !selectedObject) {
                 return;
             }
 
-            const mousePos = getMousePos(e);
-            const dx = mousePos.x - startX;
-            const dy = mousePos.y - startY;
-            const obj = selectedObject;
-
-            if (isResizing) {
-                // Resize logic
-                let newWidth = obj.width + dx;
-                if (newWidth < 20) newWidth = 20; 
-
-                if (obj.type === 'image' || obj.type === 'sticker') {
-                    if (obj.image && obj.image.width > 0) {
-                        const aspectRatio = obj.image.height / obj.image.width;
-                        obj.width = newWidth;
-                        obj.height = newWidth * aspectRatio;
-                    }
-                } else if (obj.type === 'text') {
-                    let newSize = obj.fontSize + dy / 2; 
-                    if (newSize < 10) newSize = 10;
-                    obj.fontSize = newSize; 
-                }
-                
-                startX = mousePos.x;
-                startY = mousePos.y;
-
-            } else if (isRotating) {
-                // Rotate logic
-                const centerX = obj.x + obj.width / 2;
-                const centerY = obj.y + obj.height / 2;
-                
-                const currentAngle = Math.atan2(mousePos.y - centerY, mousePos.x - centerX);
-                const startPointAngle = Math.atan2(startY - centerY, startX - centerX);
-                
-                obj.angle = currentAngle - startPointAngle + lastAngle;
-                
-            } else { // Kéo (Drag)
-                obj.x += dx;
-                obj.y += dy;
-                
-                startX = mousePos.x;
-                startY = mousePos.y;
+            // Kiểm tra kéo đối tượng
+            if (isPointInObject(mousePos.x, mousePos.y, obj)) {
+                canvasObjects.splice(i, 1);
+                canvasObjects.push(obj);
+                foundObject = obj;
+                break;
             }
-
+        }
+        
+        if (foundObject) {
+            selectedObject = foundObject;
+            isDragging = true;
+            startX = mousePos.x;
+            startY = mousePos.y;
+            drawFrame(); 
+        } else {
+            selectedObject = null;
             drawFrame();
         }
+    }
 
-        function handleMouseUp() {
-            if (isRotating && selectedObject) {
-                lastAngle = selectedObject.angle || 0; 
-            }
-            isDragging = false;
-            isResizing = false;
-            isRotating = false;
+    function handleMouseMove(e) {
+        if (!isDragging || !selectedObject) {
+            return;
         }
 
-        // =======================================================
-        // PHẦN 4: LOGIC TẢI DỮ LIỆU
-        // =======================================================
+        const mousePos = getMousePos(e);
+        const dx = mousePos.x - startX;
+        const dy = mousePos.y - startY;
+        const obj = selectedObject;
 
-        function loadDesignFromData(designData) {
-            frameColor = designData.settings.frameColor || '#000000';
-            frameThickness = parseInt(designData.settings.frameThickness) || 25;
-            photoSizeScale = parseFloat(designData.settings.photoSizeScale) || 1.0;
-            stripWidth = parseInt(designData.settings.stripWidth) || 600;
-            stripHeight = parseInt(designData.settings.stripHeight) || 1800;
-            currentDesignId = designData.id;
-            
-            drawFrame(); 
+        if (isResizing) {
+            let newWidth = obj.width + dx;
+            if (newWidth < 20) newWidth = 20; 
 
-            canvasObjects = [];
-            capturedPhotos = [];
-            let loadCount = 0;
-            
-            const photosToLoadData = designData.photos || [];
-            const objectsToLoadData = designData.objects || [];
-            const totalItemsToLoad = photosToLoadData.length + objectsToLoadData.length; 
-
-            const finishLoading = () => {
-                loadCount++;
-                if (loadCount === totalItemsToLoad || totalItemsToLoad === 0) {
-                    drawFrame(); 
+            if (obj.type === 'image' || obj.type === 'sticker') {
+                if (obj.image && obj.image.width > 0) {
+                    const aspectRatio = obj.image.height / obj.image.width;
+                    obj.width = newWidth;
+                    obj.height = newWidth * aspectRatio;
                 }
-            };
-
-            if (totalItemsToLoad === 0) finishLoading();
-
-            // 1. Tải ảnh đã chụp/tải lên từ mẫu (capturedPhotos)
-            photosToLoadData.forEach((photoData, index) => {
-                if (photoData && photoData.src) {
-                    const img = new Image();
-                    img.onload = () => {
-                        capturedPhotos[index] = { index: index, image: img, src: photoData.src };
-                        currentPhotoIndex = Math.max(currentPhotoIndex, index + 1);
-                        updateCaptureButtonText();
-                        finishLoading();
-                    };
-                    img.onerror = () => {
-                        capturedPhotos[index] = null; 
-                        finishLoading();
-                    };
-                    img.crossOrigin = "Anonymous";
-                    img.src = photoData.src;
-                } else {
-                    capturedPhotos[index] = null;
-                    finishLoading();
-                }
-            });
-
-            // 2. Tải Objects (Sticker/Text/Ảnh Idol)
-            objectsToLoadData.forEach(objData => {
-                if (objData.type === 'text') {
-                    canvasObjects.push(objData);
-                    finishLoading();
-                } else if (objData.src) {
-                    const img = new Image();
-                    img.onload = () => {
-                        canvasObjects.push({...objData, image: img});
-                        finishLoading();
-                    };
-                    img.onerror = finishLoading; 
-                    img.crossOrigin = "Anonymous"; 
-                    img.src = objData.src;
-                } else {
-                    finishLoading(); 
-                }
-            });
+            } else if (obj.type === 'text') {
+                let newSize = obj.fontSize + dy / 2; 
+                if (newSize < 10) newSize = 10;
+                obj.fontSize = newSize; 
+            }
             
-            startWebcam();
-            updateCaptureButtonText();
+            startX = mousePos.x;
+            startY = mousePos.y;
+
+        } else if (isRotating) {
+            const centerX = obj.x + obj.width / 2;
+            const centerY = obj.y + obj.height / 2;
+            
+            const currentAngle = Math.atan2(mousePos.y - centerY, mousePos.x - centerX);
+            const startPointAngle = Math.atan2(startY - centerY, startX - centerX);
+            
+            obj.angle = currentAngle - startPointAngle + lastAngle;
+            
+        } else { // Kéo (Drag)
+            obj.x += dx;
+            obj.y += dy;
+            
+            startX = mousePos.x;
+            startY = mousePos.y;
         }
 
-        // =======================================================
-        // KHỞI TẠO VÀ GẮN SỰ KIỆN 
-        // =======================================================
+        drawFrame();
+    }
 
-        window.onload = () => {
-            // FIX: Làm sạch hash và dùng hàm urlSafeBase64Decode
-            const hashValueRaw = window.location.hash.substring(1);
-            const hashValue = hashValueRaw.replace(/[^a-zA-Z0-9\-_=]/g, '').trim(); 
-            const container = document.getElementById('viewer-container');
-            
-            if (!hashValue) {
-                container.innerHTML = `<div class="alert-message">**LỖI:** Không tìm thấy dữ liệu mẫu thiết kế chia sẻ trong URL.</div>`;
-                return;
+    function handleMouseUp() {
+        if (isRotating && selectedObject) {
+            lastAngle = selectedObject.angle || 0; 
+        }
+        isDragging = false;
+        isResizing = false;
+        isRotating = false;
+    }
+
+    // =======================================================
+    // PHẦN 3: LOGIC TẢI DỮ LIỆU (Đã fix lỗi mất ảnh idol và ảnh đã chụp)
+    // =======================================================
+
+    function loadDesignFromData(designData) {
+        frameColor = designData.settings.frameColor || '#000000';
+        frameThickness = parseInt(designData.settings.frameThickness) || 25;
+        photoSizeScale = parseFloat(designData.settings.photoSizeScale) || 1.0;
+        stripWidth = parseInt(designData.settings.stripWidth) || 600;
+        stripHeight = parseInt(designData.settings.stripHeight) || 1800;
+        currentDesignId = designData.id;
+        
+        drawFrame(); 
+
+        canvasObjects = [];
+        capturedPhotos = [];
+        let loadCount = 0;
+        
+        const photosToLoadData = designData.photos || [];
+        const objectsToLoadData = designData.objects || [];
+        const totalItemsToLoad = photosToLoadData.length + objectsToLoadData.length; 
+
+        const finishLoading = () => {
+            loadCount++;
+            if (loadCount === totalItemsToLoad || totalItemsToLoad === 0) {
+                drawFrame(); 
             }
-
-            try {
-                const safeHashValue = urlSafeBase64Decode(hashValue);
-                const base64Decoded = atob(safeHashValue); 
-                const decodedJsonString = decodeURIComponent(escape(base64Decoded));
-                const designData = JSON.parse(decodedJsonString);
-                
-                if (designData && designData.settings) {
-                    loadDesignFromData(designData);
-                } else {
-                    throw new Error("Dữ liệu thiết kế không hợp lệ hoặc trống.");
-                }
-
-            } catch (e) {
-                console.error("LỖI TẢI THIẾT KẾ CHIA SẺ:", e);
-                container.innerHTML = `
-                    <div class="alert-message">
-                        **LỖI NGHIÊM TRỌNG (Dữ liệu hỏng):** Không thể tải mẫu thiết kế. Dữ liệu trong URL bị hỏng.
-                        <p>Chi tiết: ${e.message}</p>
-                        <p>Vui lòng yêu cầu người gửi tạo lại link chia sẻ mới.</p>
-                    </div>
-                `;
-            }
-
-            // GẮN SỰ KIỆN TƯƠNG TÁC LÊN CANVAS
-            canvas.addEventListener('mousedown', handleMouseDown);
-            canvas.addEventListener('mousemove', handleMouseMove);
-            canvas.addEventListener('mouseup', handleMouseUp);
-            canvas.addEventListener('mouseout', handleMouseUp);
         };
 
-        // Gắn sự kiện chụp/xuất ảnh 
-        capturePhotoBtn.addEventListener('click', capturePhoto);
-        exportFinalImageBtn.addEventListener('click', exportFinalImage);
-        
-        // FIX: Xử lý Tải ảnh lên (thêm ảnh mới làm sticker có thể chỉnh sửa)
-        viewerImageUpload.addEventListener('change', (e) => {
-            const files = e.target.files;
-            if (files.length > 0) {
-                const file = files[0];
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        const initialSize = 150;
-                        
-                        // Thêm ảnh mới vào làm Canvas Object (sticker)
-                        const newObject = {
-                            type: 'sticker', 
-                            image: img,
-                            src: e.target.result,
-                            x: (stripWidth / 2) - (initialSize / 2), // Đặt ở giữa
-                            y: (stripHeight / 2) - (initialSize / 2),
-                            width: initialSize,
-                            height: initialSize * (img.height / img.width),
-                            angle: 0
-                        };
-                        
-                        canvasObjects.push(newObject);
-                        
-                        selectedObject = newObject; // Chọn đối tượng mới để có thể di chuyển ngay
-                        drawFrame();
-                        alert(`Ảnh mới đã được thêm vào dải ảnh. Bạn có thể kéo, thay đổi kích thước và xoay.`);
-                    };
-                    img.onerror = () => {
-                        alert("Không thể tải ảnh bạn vừa chọn. Vui lòng thử lại với ảnh khác.");
-                    };
-                    img.src = e.target.result;
+        if (totalItemsToLoad === 0) finishLoading();
+
+        // 1. Tải ảnh đã chụp/tải lên từ mẫu (capturedPhotos)
+        photosToLoadData.forEach((photoData, index) => {
+            if (photoData && photoData.src) {
+                const img = new Image();
+                img.onload = () => {
+                    capturedPhotos[index] = { index: index, image: img, src: photoData.src };
+                    currentPhotoIndex = Math.max(currentPhotoIndex, index + 1);
+                    updateCaptureButtonText();
+                    finishLoading();
                 };
-                reader.readAsDataURL(file);
+                img.onerror = () => {
+                    capturedPhotos[index] = null; // Bỏ qua ảnh lỗi
+                    finishLoading();
+                };
+                img.crossOrigin = "Anonymous";
+                img.src = photoData.src;
+            } else {
+                capturedPhotos[index] = null;
+                finishLoading();
             }
         });
-    </script>
+
+        // 2. Tải Objects (Sticker/Text/Ảnh Idol)
+        objectsToLoadData.forEach(objData => {
+            if (objData.type === 'text') {
+                canvasObjects.push(objData);
+                finishLoading();
+            } else if (objData.src) {
+                const img = new Image();
+                img.onload = () => {
+                    canvasObjects.push({...objData, image: img});
+                    finishLoading();
+                };
+                img.onerror = finishLoading; 
+                img.crossOrigin = "Anonymous"; 
+                img.src = objData.src;
+            } else {
+                finishLoading(); 
+            }
+        });
+        
+        startWebcam();
+        updateCaptureButtonText();
+    }
+
+    // =======================================================
+    // KHỞI TẠO VÀ GẮN SỰ KIỆN 
+    // =======================================================
+
+    window.onload = () => {
+        const hashValueRaw = window.location.hash.substring(1);
+        const hashValue = hashValueRaw.replace(/[^a-zA-Z0-9\-_=]/g, '').trim(); 
+        const container = document.getElementById('viewer-container');
+        
+        if (!hashValue) {
+            container.innerHTML = `<div class="alert-message">**LỖI:** Không tìm thấy dữ liệu mẫu thiết kế chia sẻ trong URL.</div>`;
+            return;
+        }
+
+        try {
+            const safeHashValue = urlSafeBase64Decode(hashValue);
+            const base64Decoded = atob(safeHashValue); 
+            const decodedJsonString = decodeURIComponent(escape(base64Decoded));
+            const designData = JSON.parse(decodedJsonString);
+            
+            if (designData && designData.settings) {
+                loadDesignFromData(designData);
+            } else {
+                throw new Error("Dữ liệu thiết kế không hợp lệ hoặc trống.");
+            }
+
+        } catch (e) {
+            console.error("LỖI TẢI THIẾT KẾ CHIA SẺ:", e);
+            container.innerHTML = `
+                <div class="alert-message">
+                    **LỖỖI NGHIÊM TRỌNG (Dữ liệu hỏng):** Không thể tải mẫu thiết kế. Dữ liệu trong URL bị hỏng.
+                    <p>Chi tiết: ${e.message}</p>
+                    <p>Vui lòng yêu cầu người gửi tạo lại link chia sẻ mới.</p>
+                </div>
+            `;
+        }
+
+        // GẮN SỰ KIỆN TƯƠNG TÁC LÊN CANVAS
+        canvas.addEventListener('mousedown', handleMouseDown);
+        canvas.addEventListener('mousemove', handleMouseMove);
+        canvas.addEventListener('mouseup', handleMouseUp);
+        canvas.addEventListener('mouseout', handleMouseUp);
+    };
+
+    // Gắn sự kiện chụp/xuất ảnh 
+    capturePhotoBtn.addEventListener('click', capturePhoto);
+    exportFinalImageBtn.addEventListener('click', exportFinalImage);
+    
+    // XỬ LÝ TẢI ẢNH LÊN MỚI (Thêm vào làm sticker/overlay có thể chỉnh sửa)
+    viewerImageUpload.addEventListener('change', (e) => {
+        const files = e.target.files;
+        if (files.length > 0) {
+            const file = files[0];
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const initialSize = 150;
+                    
+                    const newObject = {
+                        type: 'sticker', 
+                        image: img,
+                        src: e.target.result,
+                        x: (stripWidth / 2) - (initialSize / 2), 
+                        y: (stripHeight / 2) - (initialSize / 2),
+                        width: initialSize,
+                        height: initialSize * (img.height / img.width),
+                        angle: 0
+                    };
+                    
+                    canvasObjects.push(newObject);
+                    
+                    selectedObject = newObject; 
+                    drawFrame();
+                    alert(`Ảnh mới đã được thêm vào dải ảnh. Bạn có thể kéo, thay đổi kích thước và xoay.`);
+                };
+                img.onerror = () => {
+                    alert("Không thể tải ảnh bạn vừa chọn. Vui lòng thử lại với ảnh khác.");
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+</script>
 </body>
 </html>
