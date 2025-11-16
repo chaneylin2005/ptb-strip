@@ -22,7 +22,7 @@
 
         /* ==================== VIEW GỌN NHẸ ==================== */
         #viewer-container { max-width: 650px; margin: 20px auto; padding: 0 15px; text-align: center; }
-        #photoStripCanvas { border: 5px dashed #ccc; background-color: white; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); max-width: 100%; height: auto; display: block; margin: 20px auto; }
+        #photoStripCanvas { border: 5px dashed #ccc; background-color: white; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); max-width: 100%; height: auto; display: block; margin: 20px auto; cursor: default; }
         .webcam-preview { margin-top: 20px; }
         #webcamFeed { width: 300px; height: auto; border: 2px solid #333; display: block; margin: 10px auto; }
         #viewerImageUploadLabel { text-align: center; margin-bottom: 5px; background-color: #17a2b8; color: white; display: block; }
@@ -87,7 +87,7 @@
         let currentPhotoIndex = 0;
         let canvasObjects = []; // Đối tượng sticker/text
 
-        // --- BIẾN ĐIỀU KHIỂN TƯƠNG TÁC MỚI ---
+        // --- BIẾN ĐIỀU KHIỂN TƯƠNG TÁC ---
         let isDragging = false;
         let isResizing = false;
         let isRotating = false; 
@@ -234,6 +234,7 @@
                     ctx.textAlign = 'center'; 
                     ctx.textBaseline = 'middle'; 
                     
+                    // Cập nhật lại kích thước của text object để vùng tương tác chính xác
                     const metrics = ctx.measureText(obj.text);
                     obj.width = metrics.width;
                     obj.height = obj.fontSize * 1.2; 
@@ -265,6 +266,25 @@
             });
         }
 
+        function exportFinalImage() {
+            // Hủy chọn đối tượng trước khi xuất để không vẽ viền điều khiển
+            const tempSelectedObject = selectedObject;
+            selectedObject = null;
+            drawFrame(); 
+            
+            const imageURL = canvas.toDataURL("image/png");
+            const link = document.createElement('a');
+            link.download = `photobooth-strip-${currentDesignId || Date.now()}.png`;
+            link.href = imageURL;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // Khôi phục lại đối tượng được chọn (nếu có)
+            selectedObject = tempSelectedObject;
+            drawFrame();
+        }
+
         // =======================================================
         // PHẦN 2: LOGIC TƯƠNG TÁC (KÉO, THẢ, RESIZE, ROTATE)
         // =======================================================
@@ -281,8 +301,8 @@
             const centerX = obj.x + obj.width / 2;
             const centerY = obj.y + obj.height / 2;
 
-            const cos = Math.cos(-obj.angle);
-            const sin = Math.sin(-obj.angle);
+            const cos = Math.cos(-obj.angle || 0);
+            const sin = Math.sin(-obj.angle || 0);
             
             const rotatedX = cos * (x - centerX) - sin * (y - centerY) + centerX;
             const rotatedY = sin * (x - centerX) + cos * (y - centerY) + centerY;
@@ -308,8 +328,8 @@
             const centerX = obj.x + obj.width / 2;
             const centerY = obj.y + obj.height / 2;
 
-            const cos = Math.cos(-obj.angle);
-            const sin = Math.sin(-obj.angle);
+            const cos = Math.cos(-obj.angle || 0);
+            const sin = Math.sin(-obj.angle || 0);
 
             const rotatedMouseX = cos * (x - centerX) - sin * (y - centerY) + centerX;
             const rotatedMouseY = sin * (x - centerX) + cos * (y - centerY) + centerY;
@@ -333,11 +353,11 @@
             isRotating = false;
             if (e.button === 2) return; 
             
-            selectedObject = null; 
-
+            // Xử lý việc chọn đối tượng và kiểm tra handles
             for (let i = canvasObjects.length - 1; i >= 0; i--) {
                 const obj = canvasObjects[i];
                 
+                // Kiểm tra Rotate Handle
                 if (isPointInRotateHandle(mousePos.x, mousePos.y, obj)) {
                     selectedObject = obj;
                     isRotating = true;
@@ -349,6 +369,7 @@
                     return;
                 }
 
+                // Kiểm tra Resize Handle
                 if (isPointInResizeHandle(mousePos.x, mousePos.y, obj)) {
                     selectedObject = obj;
                     isResizing = true;
@@ -359,20 +380,26 @@
                     return;
                 }
 
+                // Kiểm tra kéo đối tượng
                 if (isPointInObject(mousePos.x, mousePos.y, obj)) {
+                    // Đưa đối tượng lên trên cùng (z-index)
                     canvasObjects.splice(i, 1);
                     canvasObjects.push(obj);
                     foundObject = obj;
                     break;
                 }
             }
-
+            
             if (foundObject) {
                 selectedObject = foundObject;
                 isDragging = true;
                 startX = mousePos.x;
                 startY = mousePos.y;
                 drawFrame(); 
+            } else {
+                // Hủy chọn nếu click ra ngoài
+                selectedObject = null;
+                drawFrame();
             }
         }
 
@@ -397,6 +424,7 @@
                         obj.height = newWidth * aspectRatio;
                     }
                 } else if (obj.type === 'text') {
+                    // Thay đổi fontSize dựa trên thay đổi chiều cao
                     let newSize = obj.fontSize + dy / 2; 
                     if (newSize < 10) newSize = 10;
                     obj.fontSize = newSize; 
@@ -414,7 +442,7 @@
                 
                 obj.angle = currentAngle - startPointAngle + lastAngle;
                 
-            } else {
+            } else { // Kéo (Drag)
                 obj.x += dx;
                 obj.y += dy;
                 
@@ -439,6 +467,7 @@
         // =======================================================
 
         function loadDesignFromData(designData) {
+            // ... (Phần này không đổi) ...
             frameColor = designData.settings.frameColor || '#000000';
             frameThickness = parseInt(designData.settings.frameThickness) || 25;
             photoSizeScale = parseFloat(designData.settings.photoSizeScale) || 1.0;
@@ -485,28 +514,30 @@
         }
 
         // =======================================================
-        // KHỞI TẠO VÀ GẮN SỰ KIỆN
+        // KHỞI TẠO VÀ GẮN SỰ KIỆN (Tập trung vào tính ổn định)
         // =======================================================
 
         window.onload = () => {
-            const hashValue = window.location.hash.substring(1).trim(); 
+            // Loại bỏ tất cả ký tự không phải là Base64 hợp lệ, sau đó trim
+            const hashValueRaw = window.location.hash.substring(1);
+            const hashValue = hashValueRaw.replace(/[^a-zA-Z0-9\-_=]/g, '').trim(); 
             const container = document.getElementById('viewer-container');
             
             if (!hashValue) {
                 container.innerHTML = `
                     <div class="alert-message">
-                        **LỖI:** Không tìm thấy dữ liệu mẫu thiết kế chia sẻ. Vui lòng kiểm tra lại đường link.
+                        **LỖI:** Không tìm thấy dữ liệu mẫu thiết kế chia sẻ trong URL.
                     </div>
-                    <a href="index.html" class="primary-action" style="text-decoration: none;">
-                        ← Quay lại Trang Thiết Kế (index.html)
-                    </a>
                 `;
                 return;
             }
 
             try {
                 const safeHashValue = urlSafeBase64Decode(hashValue);
-                const decodedJsonString = decodeURIComponent(escape(atob(safeHashValue)));
+                // Dùng atob để giải mã Base64
+                const base64Decoded = atob(safeHashValue); 
+                // Giải mã UTF-8
+                const decodedJsonString = decodeURIComponent(escape(base64Decoded));
                 const designData = JSON.parse(decodedJsonString);
                 
                 if (designData && designData.settings) {
@@ -519,12 +550,10 @@
                 console.error("LỖI TẢI THIẾT KẾ CHIA SẺ:", e);
                 container.innerHTML = `
                     <div class="alert-message">
-                        **LỖI:** Mẫu thiết kế không thể tải được. Dữ liệu bị hỏng hoặc chưa được lưu đúng cách.
-                        <p>Chi tiết lỗi: ${e.message}</p>
+                        **LỖI NGHIÊM TRỌNG (Dữ liệu hỏng):** Không thể tải mẫu thiết kế. Dữ liệu trong URL bị hỏng.
+                        <p>Chi tiết: ${e.message}</p>
+                        <p>Vui lòng quay lại Trang Thiết Kế (<a href="index.html">index.html</a>) và tạo lại link chia sẻ.</p>
                     </div>
-                    <a href="index.html" class="primary-action" style="text-decoration: none;">
-                        ← Quay lại Trang Thiết Kế (index.html)
-                    </a>
                 `;
             }
 
@@ -535,11 +564,12 @@
             canvas.addEventListener('mouseout', handleMouseUp);
         };
 
-        // Gắn sự kiện chụp/xuất ảnh (được gọi từ HTML)
+        // Gắn sự kiện chụp/xuất ảnh 
         capturePhotoBtn.addEventListener('click', capturePhoto);
         exportFinalImageBtn.addEventListener('click', exportFinalImage);
         
         viewerImageUpload.addEventListener('change', (e) => {
+            // ... (Logic tải ảnh lên không đổi) ...
             const files = e.target.files;
             if (files.length > 0) {
                 const file = files[0];
