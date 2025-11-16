@@ -101,6 +101,11 @@
             <div class="webcam-preview">
                 <video id="webcamFeed" autoplay></video>
                 <button id="capturePhotoBtn">Chụp Ảnh (1/4)</button>
+                
+                <label for="viewerImageUpload" id="viewerImageUploadLabel" class="secondary-action" style="display: none; text-align: center; margin-bottom: 5px; background-color: #17a2b8; color: white; ">
+                    **Hoặc Tải Ảnh Lên Để Thay Thế**
+                </label>
+                <input type="file" id="viewerImageUpload" accept="image/*" style="display: none;">
             </div>
         </section>
 
@@ -242,12 +247,13 @@
         const sendToBackBtn = document.getElementById('sendToBackBtn');
         const layerControlAlert = document.getElementById('layerControlAlert');
         
-        // CÁC PHẦN TỬ MỚI ĐƯỢC CHỌN CHO VIEWER MODE
+        // CÁC PHẦN TỬ CHO VIEWER MODE
         const controlsPanel = document.getElementById('controls-panel');
         const designerActionsTop = document.getElementById('designer-actions-top');
         const toggleViewBtn = document.getElementById('toggleViewBtn');
         const canvasHeader = document.getElementById('canvas-header');
-
+        const viewerImageUpload = document.getElementById('viewerImageUpload');
+        const viewerImageUploadLabel = document.getElementById('viewerImageUploadLabel'); // Nút Tải ảnh cho Viewer Mode
 
         const MAX_PHOTOS = 4;
 
@@ -746,23 +752,28 @@
         // PHẦN 4: LOGIC LƯU/TẢI/XUẤT VÀ CHUYỂN CHẾ ĐỘ
         // =======================================================
         
-        // HÀM MỚI: ẨN/HIỆN CONTROLS TÙY THEO CHẾ ĐỘ
+        // HÀM MỚI: ẨN/HIỆN CONTROLS TÙY THEO CHẾ ĐỘ (ĐÃ CẬP NHẬT)
         function toggleDesignerControls(show) {
             if (show) {
-                // Hiển thị tất cả các controls thiết kế (chế độ Designer)
+                // DESIGNER MODE: Hiển thị các nút thiết kế và chức năng chỉnh sửa
                 controlsPanel.style.display = 'block';
                 designerActionsTop.style.display = 'flex';
                 canvasHeader.textContent = "Khung Xem Trước Strip 4 Ảnh (Bấm chuột phải để Xóa đối tượng)";
                 mainTitle.textContent = "Tạo Strip Photo Booth Cá Nhân";
+
+                viewerImageUploadLabel.style.display = 'none'; // Ẩn nút tải ảnh của Viewer
+                exportFinalImageBtn.style.marginTop = '20px'; // Quay lại margin mặc định
+                
             } else {
-                // Ẩn tất cả các controls thiết kế (chế độ Viewer/User)
+                // VIEWER MODE: Ẩn tất cả các controls thiết kế
                 controlsPanel.style.display = 'none';
                 designerActionsTop.style.display = 'none'; // Ẩn nút Quay lại thư viện và Tạo mới
                 canvasHeader.textContent = "Khung Ảnh Strip Photobooth Của Bạn";
                 mainTitle.textContent = "Sử Dụng Mẫu Photobooth";
 
-                // Chỉ hiện nút Xuất Ảnh Hoàn Chỉnh trong Designer mode nếu nó bị ẩn
-                exportFinalImageBtn.style.display = 'block'; 
+                // Hiển thị nút tải ảnh cho Viewer Mode thay thế cho nút Tải Ảnh trong controls panel
+                viewerImageUploadLabel.style.display = 'block'; 
+                exportFinalImageBtn.style.marginTop = '5px'; // Đẩy nút Export lên cao hơn
             }
         }
 
@@ -797,7 +808,7 @@
             designView.style.display = 'none';
             libraryView.style.display = 'block'; 
             
-            toggleDesignerControls(true); // Luôn Bật Designer Controls khi ở Library
+            toggleDesignerControls(true); // LUÔN BẬT DESIGNER MODE KHI VÀO THƯ VIỆN
             loadDesigns(); 
             
             if (webcamFeed.srcObject) {
@@ -813,8 +824,7 @@
             currentDesignId = null; 
             selectedObject = null;
             
-            // LUÔN BẬT CONTROLS VÀO LÚC NÀY, LOGIC TẮT SẼ Ở window.onload HOẶC showLibrary/loadDesign
-            toggleDesignerControls(true); 
+            // Logic ẩn/hiện controls sẽ nằm ở window.onload hoặc showLibrary (đã được gọi)
 
             if (isNew) {
                 capturedPhotos = [];
@@ -864,7 +874,7 @@
                     if (loadCount === totalObjects || totalObjects === 0) {
                         drawFrame();
                         // Chỉ hiện thông báo khi tải từ Local Storage/File
-                        if (!window.location.hash.substring(1)) {
+                        if (controlsPanel.style.display !== 'none') {
                             alert(`Thiết kế "${designData.name || currentDesignId}" đã được tải thành công!`);
                         }
                     }
@@ -965,6 +975,7 @@
                     const designData = JSON.parse(e.target.result);
                     if (designData && designData.settings) {
                         showDesign(false, designData);
+                        toggleDesignerControls(true); // Luôn bật designer khi tải từ file
                     } else {
                         throw new Error("Dữ liệu JSON không hợp lệ.");
                     }
@@ -980,6 +991,7 @@
             const savedDesigns = JSON.parse(localStorage.getItem('photoBoothDesigns') || '[]');
             if (savedDesigns[index]) {
                 showDesign(false, savedDesigns[index]);
+                toggleDesignerControls(true); // Luôn bật designer khi tải từ thư viện
             } else {
                 alert("Không tìm thấy thiết kế này.");
             }
@@ -1007,7 +1019,7 @@
             document.body.removeChild(link);
         }
         
-        // ĐÃ CẬP NHẬT: Hàm Xuất Link Chia Sẻ (Base64) - Sửa lỗi sao chép
+        // Hàm Xuất Link Chia Sẻ (Base64)
         function exportShareLink() {
             const designDataToShare = {
                 id: currentDesignId || Math.random().toString(36).substring(2, 9),
@@ -1049,7 +1061,7 @@
         // PHẦN 5: GẮN SỰ KIỆN VÀ KHỞI TẠO
         // =======================================================
 
-        // Gắn sự kiện Tải Ảnh
+        // Gắn sự kiện Tải Ảnh (Designer Mode)
         addImageToStripBtn.addEventListener('click', () => {
             const file = imageUpload.files[0];
             if (file) {
@@ -1112,6 +1124,39 @@
         bringToFrontBtn.addEventListener('click', () => adjustLayer('front'));
         sendToBackBtn.addEventListener('click', () => adjustLayer('back'));
 
+        // Gắn sự kiện Tải ảnh cho Viewer Mode (MỚI)
+        viewerImageUpload.addEventListener('change', (e) => {
+            const files = e.target.files;
+            if (files.length > 0) {
+                const file = files[0];
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        // Tải ảnh mới vào slot trống đầu tiên (hoặc slot 0 nếu đã đầy)
+                        const slotIndex = capturedPhotos.findIndex(p => p === null || p === undefined);
+                        const indexToUse = slotIndex !== -1 ? slotIndex : 0;
+                        
+                        capturedPhotos[indexToUse] = {
+                            index: indexToUse,
+                            image: img,
+                            src: e.target.result
+                        };
+                        
+                        if (currentPhotoIndex <= indexToUse) {
+                            currentPhotoIndex = indexToUse + 1;
+                        }
+                        
+                        updateCaptureButtonText();
+                        drawFrame();
+                        alert(`Ảnh đã được tải lên slot ${indexToUse + 1}.`);
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
 
         // Gắn sự kiện cho các điều khiển
         frameColorInput.addEventListener('input', drawFrame);
@@ -1132,7 +1177,7 @@
         canvas.addEventListener('mouseout', handleMouseUp); 
 
 
-        // LOGIC TẢI THIẾT KẾ TỪ BASE64/URL HASH (ĐÃ CẬP NHẬT VIEWER MODE)
+        // LOGIC TẢI THIẾT KẾ TỪ BASE64/URL HASH
         window.onload = () => {
             const hashValue = window.location.hash.substring(1);
 
@@ -1164,7 +1209,6 @@
             
             // 4. Mặc định: Hiển thị thư viện/Designer Mode
             showLibrary();
-            toggleDesignerControls(true); // <--- BẬT CONTROLS CHỈNH SỬA
         };
     </script>
 </body>
