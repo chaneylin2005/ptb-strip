@@ -9,6 +9,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Montserrat:ital,wght@0,400;0,700;1,400&family=Pacifico&family=Pinyon+Script&display=swap" rel="stylesheet">
     
+    <script>
+        if (window.location.hash.substring(1)) {
+            document.documentElement.classList.add('viewer-active');
+        }
+    </script>
     <style>
         /* ==================== CSS CHUNG ==================== */
         body { font-family: 'Montserrat', sans-serif; margin: 0; padding: 0; background-color: #f4f4f9; color: #333; }
@@ -76,41 +81,31 @@
             .design-area > div { display: flex; flex-direction: row; gap: 10px; }
             .design-area button { flex-grow: 1; }
         }
+
+        /* ==================== CSS CONTROL VIEWER MODE ==================== */
+        .viewer-active #controls-panel,
+        .viewer-active #designer-actions-top {
+            display: none !important; /* Buộc ẩn thanh điều khiển và nút "Quay lại Thư Viện" */
+        }
+        
+        .viewer-active #main-title {
+            /* Thay đổi tiêu đề trang */
+            content: "Sử Dụng Mẫu Photobooth";
+        }
+        
+        .viewer-active #canvas-header {
+            /* Thay đổi tiêu đề canvas */
+            content: "Khung Ảnh Strip Photobooth Của Bạn";
+        }
+        
+        .viewer-active #viewerImageUploadLabel {
+            display: block !important; /* Buộc hiển thị nút tải ảnh cho người dùng Viewer */
+        }
+        
     </style>
 </head>
 <body>
-    <script>
-        // Kiểm tra ngay lập tức nếu URL có hash (dữ liệu chia sẻ)
-        if (window.location.hash.substring(1)) {
-            document.addEventListener('DOMContentLoaded', function() {
-                const designView = document.getElementById('design-view');
-                const controlsPanel = document.getElementById('controls-panel');
-                const designerActionsTop = document.getElementById('designer-actions-top');
-                
-                // Ẩn tất cả các phần tử thiết kế (chỉ để lại canvas và webcam/viewer buttons)
-                if (designView) designView.style.display = 'flex';
-                if (controlsPanel) controlsPanel.style.display = 'none';
-                if (designerActionsTop) designerActionsTop.style.display = 'none';
-                
-                // Đảm bảo Library View ẩn
-                const libraryView = document.getElementById('library-view');
-                if (libraryView) libraryView.style.display = 'none';
 
-                // Đảm bảo tiêu đề được cập nhật
-                const mainTitle = document.getElementById('main-title');
-                if (mainTitle) mainTitle.textContent = "Sử Dụng Mẫu Photobooth";
-
-                const canvasHeader = document.getElementById('canvas-header');
-                if (canvasHeader) canvasHeader.textContent = "Khung Ảnh Strip Photobooth Của Bạn";
-
-                const viewerImageUploadLabel = document.getElementById('viewerImageUploadLabel');
-                const exportFinalImageBtn = document.getElementById('exportFinalImageBtn');
-
-                if (viewerImageUploadLabel) viewerImageUploadLabel.style.display = 'block';
-                if (exportFinalImageBtn) exportFinalImageBtn.style.marginTop = '5px';
-            });
-        }
-    </script>
     <header>
         <h1 id="main-title">Tạo Strip Photo Booth Cá Nhân</h1>
     </header>
@@ -805,6 +800,9 @@
                 viewerImageUploadLabel.style.display = 'none'; 
                 exportFinalImageBtn.style.marginTop = '20px'; 
                 
+                // Loại bỏ class viewer-active để CSS Control không can thiệp
+                document.documentElement.classList.remove('viewer-active');
+                
             } else {
                 // VIEWER MODE: Ẩn controls
                 controlsPanel.style.display = 'none';
@@ -815,6 +813,8 @@
                 webcamFeed.parentElement.style.display = 'block'; 
                 viewerImageUploadLabel.style.display = 'block'; 
                 exportFinalImageBtn.style.marginTop = '5px'; 
+
+                // Giữ nguyên class viewer-active, JS chỉ cập nhật nội dung
             }
         }
 
