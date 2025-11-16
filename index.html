@@ -77,6 +77,36 @@
             .design-area button { flex-grow: 1; }
         }
         
+        /* === BACKGROUND CSS MỚI === */
+        .webcam-background-preview {
+            width: 80px;
+            height: 50px; /* Kích thước nhỏ để xem trước */
+            border: 2px solid #333;
+            overflow: hidden;
+            position: relative;
+            cursor: pointer;
+            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Các loại nền trơn */
+        .bg-solid-red { background-color: #dc3545; }
+        .bg-solid-blue { background-color: #007bff; }
+        .bg-solid-yellow { background-color: #ffc107; }
+
+        /* Các loại nền họa tiết (Ví dụ) */
+        .bg-pattern-dot { 
+            background-image: radial-gradient(#666 10%, transparent 10%);
+            background-size: 20px 20px;
+            background-color: #f0f0f0; 
+        }
+        .bg-pattern-stripes {
+            background-color: #eee;
+            background-image: linear-gradient(45deg, #bbb 25%, transparent 25%, transparent 75%, #bbb 75%, #bbb), 
+                              linear-gradient(45deg, #bbb 25%, transparent 25%, transparent 75%, #bbb 75%, #bbb);
+            background-size: 15px 15px;
+            background-position: 0 0, 7.5px 7.5px;
+        }
+
     </style>
 </head>
 <body>
@@ -112,6 +142,24 @@
 
         <aside id="controls-panel" class="controls-panel">
             <h2>🛠️ Công Cụ Thiết Kế</h2>
+
+            <fieldset class="control-group">
+                <legend>📷 Background Chụp Ảnh</legend>
+                
+                <div style="text-align: left; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;">
+                    <label for="bgColorPicker" style="flex-grow: 1;">Màu Trơn Tùy Chọn:</label>
+                    <input type="color" id="bgColorPicker" value="#ffffff" style="width: 50px; height: 30px; flex-grow: 0;">
+                </div>
+
+                <div id="backgroundLibrary" style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">
+                    <div class="webcam-background-preview bg-solid-red" data-bg-type="solid" data-bg-value="#dc3545"></div>
+                    <div class="webcam-background-preview bg-solid-blue" data-bg-type="solid" data-bg-value="#007bff"></div>
+                    <div class="webcam-background-preview bg-pattern-dot" data-bg-type="pattern" data-bg-class="bg-pattern-dot"></div>
+                    <div class="webcam-background-preview bg-pattern-stripes" data-bg-type="pattern" data-bg-class="bg-pattern-stripes"></div>
+                </div>
+
+                <button id="removeBgBtn" class="secondary-action" style="background-color: #dc3545;">Xóa Background</button>
+            </fieldset>
 
             <fieldset class="control-group">
                 <legend>Tùy Chỉnh Cơ Bản</legend>
@@ -201,7 +249,7 @@
         <p>&copy; 2025 Photo Booth Designer Của Bạn</p>
     </footer>
 
-   <script>
+    <script>
         // --- HÀM HỖ TRỢ URL-SAFE BASE64 MỚI ---
         function urlSafeBase64Encode(str) {
             return str.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, ''); // Thay + và / bằng ký tự an toàn, loại bỏ padding =
@@ -254,6 +302,13 @@
         const sendToBackBtn = document.getElementById('sendToBackBtn');
         const layerControlAlert = document.getElementById('layerControlAlert');
         
+        // Background Controls
+        const backgroundLibrary = document.getElementById('backgroundLibrary');
+        const bgColorPicker = document.getElementById('bgColorPicker');
+        const removeBgBtn = document.getElementById('removeBgBtn');
+        const webcamPreviewDiv = document.querySelector('.webcam-preview'); // Div chứa webcamFeed
+
+
         // CÁC PHẦN TỬ CHO VIEWER MODE
         const controlsPanel = document.getElementById('controls-panel');
         const designerActionsTop = document.getElementById('designer-actions-top');
@@ -341,8 +396,38 @@
                 capturePhotoBtn.disabled = true;
             }
         }
+
+        // Hàm áp dụng background cho canvas khi chụp ảnh
+        function captureWithBackground(tempCtx, canvasWidth, canvasHeight) {
+            const bgType = webcamPreviewDiv.getAttribute('data-current-bg-type');
+            const bgValue = webcamPreviewDiv.getAttribute('data-current-bg-value');
+            
+            if (bgType === 'solid' && bgValue) {
+                tempCtx.fillStyle = bgValue;
+                tempCtx.fillRect(0, 0, canvasWidth, canvasHeight);
+            } else if (bgType === 'pattern' && bgValue) {
+                // Áp dụng họa tiết bằng cách vẽ pattern lên canvas
+                const style = window.getComputedStyle(webcamPreviewDiv);
+                
+                // Lấy các giá trị style phức tạp (nếu có)
+                const backgroundImage = style.backgroundImage;
+                const backgroundSize = style.backgroundSize;
+                const backgroundColor = style.backgroundColor;
+                
+                // VẼ BACKGROUND
+                // 1. Vẽ màu nền chính
+                tempCtx.fillStyle = backgroundColor;
+                tempCtx.fillRect(0, 0, canvasWidth, canvasHeight);
+                
+                // NOTE: Áp dụng họa tiết CSS complex trực tiếp lên Canvas bằng JS là RẤT KHÓ
+                // và cần sử dụng thư viện bên ngoài. Chúng ta chỉ hỗ trợ màu trơn qua JS.
+                // Ở đây, chúng ta chỉ lấy màu nền chính của pattern làm màu nền.
+            }
+        }
         
-        function capturePhoto() {
+        // CẬP NHẬT HÀM CHỤP ẢNH
+        const originalCapturePhoto = capturePhoto;
+        capturePhoto = function() {
             if (currentPhotoIndex >= MAX_PHOTOS) return;
 
             const tempCanvas = document.createElement('canvas');
@@ -350,8 +435,13 @@
             tempCanvas.height = webcamFeed.videoHeight;
             const tempCtx = tempCanvas.getContext('2d');
             
+            // 1. ÁP DỤNG BACKGROUND CHO CANVAS TRƯỚC
+            captureWithBackground(tempCtx, tempCanvas.width, tempCanvas.height);
+
+            // 2. VẼ WEBCAM LÊN TRÊN BACKGROUND
             tempCtx.drawImage(webcamFeed, 0, 0, tempCanvas.width, tempCanvas.height);
 
+            // 3. TIẾN HÀNH LƯU ẢNH (Phần còn lại giữ nguyên)
             const capturedImage = new Image();
             capturedImage.onload = () => {
                 capturedPhotos[currentPhotoIndex] = {
@@ -364,7 +454,8 @@
                 drawFrame(); 
             };
             capturedImage.src = tempCanvas.toDataURL('image/png');
-        }
+        };
+        // KẾT THÚC CẬP NHẬT HÀM CHỤP ẢNH
 
 
         function drawFrame() {
@@ -770,8 +861,7 @@
         // =======================================================
         
         function toggleDesignerControls(show) {
-            // CODE NÀY KHÔNG CÒN ĐƯỢC DÙNG TRONG INDEX.HTML NỮA
-            // Giữ lại để hàm loadDesigns vẫn chạy (nếu cần)
+            // CODE NÀY KHÔNG CÒN ĐƯỢC DÙNG TRONG INDEX.HTML NỮA (Chuyển sang viewer.html)
             if (show) {
                 designView.style.display = 'flex';
                 libraryView.style.display = 'none';
@@ -791,8 +881,27 @@
 
         function loadDesigns() {
             const savedDesigns = JSON.parse(localStorage.getItem('photoBoothDesigns') || '[]');
-            // ... (Phần hiển thị thư viện) ...
-            // Code này không liên quan đến vấn đề Viewer Mode.
+            designList.innerHTML = '';
+            
+            if (savedDesigns.length === 0) {
+                 designList.innerHTML = '<p>Chưa có thiết kế nào được lưu. Bấm **+ Tạo Mẫu Thiết Kế Mới** để bắt đầu!</p>';
+                 return;
+            }
+            
+            savedDesigns.forEach((design, index) => {
+                const card = document.createElement('div');
+                card.className = 'design-card';
+                card.innerHTML = `
+                    <h3>${design.name || `Mẫu Photobooth ${new Date(design.timestamp).toLocaleDateString('vi-VN')}`}</h3>
+                    <p>ID: ${design.id}</p>
+                    <p>Lưu lúc: ${new Date(design.timestamp).toLocaleTimeString('vi-VN')}</p>
+                    <div class="action-group">
+                        <button class="load-btn" onclick="loadDesignByIndex(${index})">Tải & Chỉnh Sửa</button>
+                        <button class="delete-btn" onclick="deleteDesignByIndex(${index})">Xóa</button>
+                    </div>
+                `;
+                designList.appendChild(card);
+            });
         }
 
         function showLibrary() {
@@ -829,7 +938,76 @@
             }
 
             if (designData) {
-                // ... (Phần tải settings và objects) ...
+                currentDesignId = designData.id || Math.random().toString(36).substring(2, 9);
+                frameColorInput.value = designData.settings.frameColor || '#000000';
+                frameThicknessInput.value = designData.settings.frameThickness || '25';
+                photoSizeScaleInput.value = designData.settings.photoSizeScale || '1.0';
+                stripWidthInput.value = designData.settings.stripWidth || '600';
+                stripHeightInput.value = designData.settings.stripHeight || '1800';
+                
+                
+                const photosToLoad = designData.photos || [];
+                const objectsToLoad = designData.objects || [];
+                
+                
+                photosToLoad.forEach((photoData, index) => {
+                    if (photoData && photoData.src) {
+                        const img = new Image();
+                        img.onload = () => {
+                            capturedPhotos[index] = { index: index, image: img, src: photoData.src };
+                            currentPhotoIndex = Math.max(currentPhotoIndex, index + 1);
+                            updateCaptureButtonText();
+                            drawFrame();
+                        };
+                        img.crossOrigin = "Anonymous";
+                        img.src = photoData.src;
+                    }
+                });
+                
+                
+                let loadCount = 0;
+                const totalObjects = objectsToLoad.length;
+                
+                const finishLoading = () => {
+                    loadCount++;
+                    if (loadCount === totalObjects || totalObjects === 0) {
+                        drawFrame();
+                        if (controlsPanel.style.display !== 'none') {
+                            alert(`Thiết kế "${designData.name || currentDesignId}" đã được tải thành công!`);
+                        }
+                    }
+                };
+
+                if (totalObjects === 0) { 
+                    finishLoading();
+                }
+
+                objectsToLoad.forEach(objData => {
+                    if (objData.type === 'text') {
+                        canvasObjects.push(objData);
+                        finishLoading();
+                    } else if (objData.src) {
+                        const img = new Image();
+                        // Gán image object ngay lập tức (Cần thiết cho Viewer Mode)
+                        objData.image = img; 
+
+                        img.onload = () => {
+                            // Ảnh đã tải thành công.
+                            finishLoading();
+                        };
+                        img.onerror = () => {
+                            console.error("Lỗi tải ảnh/sticker IDOL:", objData.src);
+                            finishLoading(); // Vẫn tính là hoàn thành
+                        };
+                        
+                        canvasObjects.push(objData); // Đẩy vào mảng ngay lập tức
+                        
+                        img.crossOrigin = "Anonymous"; 
+                        img.src = objData.src;
+                    } else {
+                        finishLoading(); 
+                    }
+                });
             }
 
             drawFrame();
@@ -840,36 +1018,18 @@
             }
         }
         
+        // Hàm Lưu Thiết Kế & Tải File JSON
         function saveDesign() {
-            // ... (Logic lưu vào Local Storage) ...
-        }
-        
-        function handleDesignUpload(file) {
-            // ... (Logic tải file JSON) ...
-        }
-
-        function loadDesignByIndex(index) {
-            // ... (Logic tải design từ index) ...
-        }
-
-        function deleteDesignByIndex(index) {
-            // ... (Logic xóa design) ...
-        }
-        
-        function exportFinalImage() {
-            // ... (Logic xuất ảnh) ...
-        }
-        
-        // Hàm Xuất Link Chia Sẻ (Base64) - ĐÃ CẬP NHẬT ĐỂ CHIA SẺ SANG VIEWER.HTML VÀ URL-SAFE
-        function exportShareLink() {
-            
-            function urlSafeBase64Encode(str) {
-                return str.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+            if (!currentDesignId) {
+                currentDesignId = Math.random().toString(36).substring(2, 9);
             }
 
-            const designDataToShare = {
-                id: currentDesignId || Math.random().toString(36).substring(2, 9),
-                name: "Thiết Kế Được Chia Sẻ",
+            const designName = prompt("Nhập tên cho mẫu thiết kế này:", `Mẫu Photobooth ${new Date().toLocaleDateString('vi-VN')}`);
+            if (!designName) return;
+
+            const savedDesignData = {
+                id: currentDesignId,
+                name: designName,
                 timestamp: Date.now(),
                 settings: {
                     frameColor: frameColorInput.value,
@@ -877,6 +1037,10 @@
                     photoSizeScale: photoSizeScaleInput.value,
                     stripWidth: stripWidthInput.value,
                     stripHeight: stripHeightInput.value,
+                    
+                    // LƯU CẢ BACKGROUND
+                    bgType: webcamPreviewDiv.getAttribute('data-current-bg-type') || 'none',
+                    bgValue: webcamPreviewDiv.getAttribute('data-current-bg-value') || ''
                 },
                 photos: capturedPhotos.map(p => (p ? { src: p.src } : null)), 
                 objects: canvasObjects.map(obj => {
@@ -888,7 +1052,130 @@
                 })
             };
 
-            const jsonString = JSON.stringify(designDataToShare);
+            // 1. Lưu vào Local Storage
+            let allDesigns = JSON.parse(localStorage.getItem('photoBoothDesigns') || '[]');
+            const existingIndex = allDesigns.findIndex(d => d.id === currentDesignId);
+
+            if (existingIndex > -1) {
+                allDesigns[existingIndex] = savedDesignData;
+            } else {
+                allDesigns.push(savedDesignData);
+            }
+
+            localStorage.setItem('photoBoothDesigns', JSON.stringify(allDesigns));
+            
+            // 2. TẢI XUỐNG FILE JSON
+            const jsonString = JSON.stringify(savedDesignData, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${designName.replace(/[^a-z0-9]/gi, '_')}.photobooth.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            alert(`✅ Thiết kế "${designName}" đã được lưu vào Thư Viện và tải xuống thành file .json! Bạn có thể gửi file này cho người khác.`);
+        }
+        
+        // Hàm xử lý Tải File JSON
+        function handleDesignUpload(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const designData = JSON.parse(e.target.result);
+                    if (designData && designData.settings) {
+                        showDesign(false, designData);
+                        toggleDesignerControls(true); 
+                        // ÁP DỤNG BACKGROUND TỪ FILE
+                        applyWebcamBackground(designData.settings.bgType, designData.settings.bgValue);
+                    } else {
+                        throw new Error("Dữ liệu JSON không hợp lệ.");
+                    }
+                } catch (error) {
+                    alert("❌ Lỗi khi tải file thiết kế. Vui lòng đảm bảo đây là file JSON hợp lệ.");
+                    console.error("Lỗi khi đọc file JSON:", error);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function loadDesignByIndex(index) {
+            const savedDesigns = JSON.parse(localStorage.getItem('photoBoothDesigns') || '[]');
+            if (savedDesigns[index]) {
+                showDesign(false, savedDesigns[index]);
+                toggleDesignerControls(true); 
+                // ÁP DỤNG BACKGROUND TỪ LOCAL STORAGE
+                applyWebcamBackground(savedDesigns[index].settings.bgType, savedDesigns[index].settings.bgValue);
+            } else {
+                alert("Không tìm thấy thiết kế này.");
+            }
+        }
+
+        function deleteDesignByIndex(index) {
+             if (confirm("Bạn có chắc chắn muốn xóa thiết kế này?")) {
+                const savedDesigns = JSON.parse(localStorage.getItem('photoBoothDesigns') || '[]');
+                savedDesigns.splice(index, 1); 
+                localStorage.setItem('photoBoothDesigns', JSON.stringify(savedDesigns));
+                loadDesigns(); 
+                alert("Thiết kế đã được xóa.");
+            }
+        }
+        
+        function exportFinalImage() {
+            // ... (Logic xuất ảnh) ...
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            // Vẽ lại toàn bộ nội dung lên tempCanvas
+            tempCtx.drawImage(canvas, 0, 0);
+
+            const imageURL = tempCanvas.toDataURL("image/png");
+            const link = document.createElement('a');
+            link.download = `photobooth-strip-${currentDesignId || Date.now()}.png`;
+            link.href = imageURL;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+        
+        // Hàm Xuất Link Chia Sẻ (Base64) - ĐÃ CẬP NHẬT ĐỂ CHIA SẺ SANG VIEWER.HTML VÀ URL-SAFE
+        function exportShareLink() {
+            
+            function urlSafeBase64Encode(str) {
+                return str.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+            }
+
+            const savedDesignData = {
+                id: currentDesignId || Math.random().toString(36).substring(2, 9),
+                name: "Thiết Kế Được Chia Sẻ",
+                timestamp: Date.now(),
+                settings: {
+                    frameColor: frameColorInput.value,
+                    frameThickness: frameThicknessInput.value,
+                    photoSizeScale: photoSizeScaleInput.value,
+                    stripWidth: stripWidthInput.value,
+                    stripHeight: stripHeightInput.value,
+                    
+                    // LƯU BACKGROUND
+                    bgType: webcamPreviewDiv.getAttribute('data-current-bg-type') || 'none',
+                    bgValue: webcamPreviewDiv.getAttribute('data-current-bg-value') || ''
+                },
+                photos: capturedPhotos.map(p => (p ? { src: p.src } : null)), 
+                objects: canvasObjects.map(obj => {
+                    if (obj.type !== 'text') {
+                        const { image, ...rest } = obj;
+                        return rest;
+                    }
+                    return obj;
+                })
+            };
+
+            const jsonString = JSON.stringify(savedDesignData);
             const encodedBase64 = btoa(unescape(encodeURIComponent(jsonString)));
             const urlSafeEncoded = urlSafeBase64Encode(encodedBase64);
 
@@ -918,6 +1205,24 @@
         // PHẦN 5: GẮN SỰ KIỆN VÀ KHỞI TẠO
         // =======================================================
 
+        // Hàm áp dụng style background
+        function applyWebcamBackground(type, value) {
+            // 1. Áp dụng cho div chứa webcam (để người dùng xem trước)
+            webcamPreviewDiv.classList.remove('bg-solid-red', 'bg-solid-blue', 'bg-pattern-dot', 'bg-pattern-stripes', 'bg-solid-yellow');
+            webcamPreviewDiv.style.backgroundColor = 'transparent';
+            webcamPreviewDiv.style.backgroundImage = 'none';
+
+            if (type === 'solid') {
+                webcamPreviewDiv.style.backgroundColor = value;
+            } else if (type === 'pattern') {
+                webcamPreviewDiv.classList.add(value);
+            }
+
+            // Lưu trữ cài đặt
+            webcamPreviewDiv.setAttribute('data-current-bg-type', type || 'none');
+            webcamPreviewDiv.setAttribute('data-current-bg-value', value || '');
+        }
+        
         // Gắn sự kiện Tải Ảnh (Designer Mode)
         addImageToStripBtn.addEventListener('click', () => {
             const file = imageUpload.files[0];
@@ -932,6 +1237,25 @@
             }
         });
         
+        // Gắn sự kiện cho Background Controls
+        backgroundLibrary.querySelectorAll('.webcam-background-preview').forEach(previewDiv => {
+            previewDiv.addEventListener('click', () => {
+                const type = previewDiv.getAttribute('data-bg-type');
+                const value = (type === 'solid') ? previewDiv.getAttribute('data-bg-value') : previewDiv.getAttribute('data-bg-class');
+                applyWebcamBackground(type, value);
+            });
+        });
+
+        // Gắn sự kiện cho Color Picker (chọn màu trơn tùy ý)
+        bgColorPicker.addEventListener('input', () => {
+            applyWebcamBackground('solid', bgColorPicker.value);
+        });
+
+        // Gắn sự kiện Xóa Background
+        removeBgBtn.addEventListener('click', () => {
+            applyWebcamBackground('none', '');
+        });
+
         // Gắn sự kiện Tải Mẫu Thiết Kế (JSON)
         designUpload.addEventListener('change', (e) => {
             const file = e.target.files[0];
@@ -1000,8 +1324,9 @@
         canvas.addEventListener('mouseout', handleMouseUp); 
 
 
-        // LOGIC TẢI THIẾT KẾ TỪ LOCAL STORAGE (ĐÃ XÓA VIEWER MODE KHỎI ĐÂY)
+        // LOGIC TẢI THIẾT KẾ TỪ LOCAL STORAGE (KHỞI TẠO)
         window.onload = () => {
+            applyWebcamBackground('solid', '#ffffff'); // Khởi tạo nền trắng mặc định
             showLibrary();
         };
     </script>
