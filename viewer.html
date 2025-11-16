@@ -86,6 +86,17 @@
         let photoSizeScale = 1.0;
         let stripWidth = 600;
         let stripHeight = 1800;
+        
+        // --- HÀM HỖ TRỢ URL-SAFE BASE64 MỚI ---
+        function urlSafeBase64Decode(str) {
+            str = str.replace(/-/g, '+').replace(/_/g, '/');
+            // Thêm padding cho atob()
+            while (str.length % 4) {
+                str += '=';
+            }
+            return str;
+        }
+        // ------------------------------------------
 
         // =======================================================
         // CÁC HÀM CƠ BẢN (START WEBCAM, DRAW FRAME, CAPTURE PHOTO, EXPORT)
@@ -120,7 +131,7 @@
             tempCanvas.width = webcamFeed.videoWidth;
             tempCanvas.height = webcamFeed.videoHeight;
             const tempCtx = tempCanvas.getContext('2d');
-            tempCtx.drawImage(webcamFeed, 0, 0, tempCanvas.width, tempCanvas.height);
+            tempCtx.drawImage(webcamFeed, 0, 0, tempCanvas.width, tempCtx.height);
             const capturedImage = new Image();
             capturedImage.onload = () => {
                 capturedPhotos[currentPhotoIndex] = { index: currentPhotoIndex, image: capturedImage, src: tempCanvas.toDataURL('image/png') };
@@ -283,7 +294,9 @@
             }
 
             try {
-                const decodedJsonString = decodeURIComponent(escape(atob(hashValue)));
+                // SỬ DỤNG HÀM URL-SAFE DECODE ĐỂ KHẮC PHỤC LỖI ATOM
+                const safeHashValue = urlSafeBase64Decode(hashValue);
+                const decodedJsonString = decodeURIComponent(escape(atob(safeHashValue)));
                 const designData = JSON.parse(decodedJsonString);
                 
                 if (designData && designData.settings) {
@@ -297,7 +310,7 @@
                 container.innerHTML = `
                     <div class="alert-message">
                         **LỖI:** Mẫu thiết kế không thể tải được. Dữ liệu bị hỏng hoặc chưa được lưu đúng cách.
-                        <p>${e.message || 'Lỗi không xác định'}</p>
+                        <p>Chi tiết lỗi: ${e.message}</p>
                     </div>
                     <a href="index.html" class="primary-action" style="text-decoration: none;">
                         ← Quay lại Trang Thiết Kế (index.html)

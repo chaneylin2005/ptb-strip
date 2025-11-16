@@ -202,6 +202,12 @@
     </footer>
 
     <script>
+        // --- HÀM HỖ TRỢ URL-SAFE BASE64 MỚI ---
+        function urlSafeBase64Encode(str) {
+            return str.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, ''); // Thay + và / bằng ký tự an toàn, loại bỏ padding =
+        }
+        // ------------------------------------------
+        
         // Khai báo các biến DOM và hằng số
         const designView = document.getElementById('design-view');
         const libraryView = document.getElementById('library-view');
@@ -761,7 +767,6 @@
 
         // =======================================================
         // PHẦN 4: LOGIC LƯU/TẢI/XUẤT VÀ CHUYỂN CHẾ ĐỘ
-        // (Đã loại bỏ logic Viewer Mode cũ)
         // =======================================================
         
         function toggleDesignerControls(show) {
@@ -1025,8 +1030,13 @@
             document.body.removeChild(link);
         }
         
-        // Hàm Xuất Link Chia Sẻ (Base64) - ĐÃ CẬP NHẬT ĐỂ CHIA SẺ SANG VIEWER.HTML
+        // Hàm Xuất Link Chia Sẻ (Base64) - ĐÃ CẬP NHẬT ĐỂ CHIA SẺ SANG VIEWER.HTML VÀ URL-SAFE
         function exportShareLink() {
+            
+            function urlSafeBase64Encode(str) {
+                return str.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+            }
+
             const designDataToShare = {
                 id: currentDesignId || Math.random().toString(36).substring(2, 9),
                 name: "Thiết Kế Được Chia Sẻ",
@@ -1049,12 +1059,21 @@
             };
 
             const jsonString = JSON.stringify(designDataToShare);
-            const encodedDesign = btoa(unescape(encodeURIComponent(jsonString)));
-            
+            const encodedBase64 = btoa(unescape(encodeURIComponent(jsonString)));
+            const urlSafeEncoded = urlSafeBase64Encode(encodedBase64);
+
             // CHIA SẺ SANG VIEWER.HTML
             const baseUrlParts = window.location.href.split('/');
-            const baseUrl = baseUrlParts.slice(0, baseUrlParts.length - 1).join('/');
-            const shareLink = `${baseUrl}/viewer.html#${encodedDesign}`;
+            // Đảm bảo baseUrl luôn trỏ đến thư mục chứa file
+            const lastPathSegment = baseUrlParts[baseUrlParts.length - 1];
+            let baseUrl = window.location.href;
+            if (lastPathSegment.endsWith('.html') || lastPathSegment.endsWith('.htm')) {
+                baseUrl = baseUrlParts.slice(0, baseUrlParts.length - 1).join('/');
+            } else if (!baseUrl.endsWith('/')) {
+                baseUrl += '/';
+            }
+            
+            const shareLink = `${baseUrl}viewer.html#${urlSafeEncoded}`;
             
             const promptResult = prompt(
                 "✅ Link Chia Sẻ Thiết Kế (Đã nhúng toàn bộ dữ liệu).\nVui lòng BÔI ĐEN toàn bộ link và nhấn Ctrl+C (hoặc Cmd+C) để sao chép:", 
@@ -1133,9 +1152,6 @@
         bringToFrontBtn.addEventListener('click', () => adjustLayer('front'));
         sendToBackBtn.addEventListener('click', () => adjustLayer('back'));
 
-        // Gắn sự kiện Tải ảnh cho Viewer Mode (KHÔNG DÙNG TRONG index.html)
-        // viewerImageUpload.addEventListener('change', ...);
-
         // Gắn sự kiện cho các điều khiển
         frameColorInput.addEventListener('input', drawFrame);
         frameThicknessInput.addEventListener('input', drawFrame);
@@ -1157,9 +1173,7 @@
 
         // LOGIC TẢI THIẾT KẾ TỪ BASE64/URL HASH (ĐÃ XÓA VÌ CHUYỂN SANG VIEWER.HTML)
         window.onload = () => {
-            // Index.html KHÔNG BAO GIỜ TẢI TỪ HASH. Nó luôn chạy chế độ thiết kế mặc định.
+            // Index.html luôn chạy chế độ thiết kế mặc định.
             showLibrary();
         };
     </script>
-</body>
-</html>
