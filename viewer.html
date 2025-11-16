@@ -53,13 +53,10 @@
         <button id="exportFinalImageBtn" class="primary-action">Xuất Strip Ảnh Hoàn Chỉnh (Tải về)</button>
         
         <div class="alert-message" style="margin-top: 20px;">
-             Bạn không thể chỉnh sửa thiết kế này. Để tạo mẫu riêng, hãy truy cập trang chủ.
+             Bạn không thể chỉnh sửa thiết kế này.
         </div>
         
-        <a id="backToDesignLink" href="index.html" class="secondary-action" style="display: block; margin-top: 15px; text-decoration: none;">
-            ← Quay lại Trang Thiết Kế (index.html)
-        </a>
-    </div>
+        </div>
 
     <footer>
         <p>&copy; 2025 Photo Booth Designer Của Bạn</p>
@@ -98,8 +95,6 @@
         let stripWidth = 600;
         let stripHeight = 1800;
         
-        
-
         // =======================================================
         // CÁC HÀM CƠ BẢN (START WEBCAM, DRAW FRAME, CAPTURE PHOTO, EXPORT)
         // =======================================================
@@ -114,6 +109,7 @@
                 console.error("Không thể truy cập webcam:", error);
                 webcamFeed.style.display = 'none';
                 capturePhotoBtn.style.display = 'none';
+                alert("Không thể truy cập Webcam. Vui lòng sử dụng tính năng 'Tải Ảnh Lên Để Thay Thế'.");
             }
         }
         
@@ -129,23 +125,34 @@
 
         function capturePhoto() {
             if (currentPhotoIndex >= MAX_PHOTOS) return;
+            if (!webcamFeed.srcObject || webcamFeed.paused) {
+                alert("Webcam chưa hoạt động hoặc bị tạm dừng. Vui lòng kiểm tra lại hoặc tải ảnh lên.");
+                return;
+            }
+
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = webcamFeed.videoWidth;
             tempCanvas.height = webcamFeed.videoHeight;
             const tempCtx = tempCanvas.getContext('2d');
-            tempCtx.drawImage(webcamFeed, 0, 0, tempCanvas.width, tempCtx.height);
+            
+            // Đảm bảo drawImage được gọi với kích thước phù hợp
+            tempCtx.drawImage(webcamFeed, 0, 0, tempCanvas.width, tempCanvas.height);
+            
             const capturedImage = new Image();
             capturedImage.onload = () => {
                 capturedPhotos[currentPhotoIndex] = { index: currentPhotoIndex, image: capturedImage, src: tempCanvas.toDataURL('image/png') };
                 currentPhotoIndex++;
                 updateCaptureButtonText();
-                drawFrame(); 
+                drawFrame(); // Gọi drawFrame sau khi ảnh đã tải xong
+            };
+            capturedImage.onerror = (e) => {
+                console.error("Lỗi khi tải ảnh đã chụp:", e);
+                alert("Không thể xử lý ảnh đã chụp. Vui lòng thử lại.");
             };
             capturedImage.src = tempCanvas.toDataURL('image/png');
         }
 
         function drawFrame() {
-            // Cập nhật lại kích thước canvas
             canvas.width = stripWidth;
             canvas.height = stripHeight;
 
@@ -154,10 +161,9 @@
 
             ctx.clearRect(0, 0, stripWidth, stripHeight);
             ctx.fillStyle = frameColor;
-            ctx.fillRect(0, 0, stripWidth, stripHeight); // Tô nền (thường là đen)
+            ctx.fillRect(0, 0, stripWidth, stripHeight);
 
             if (photoWidth <= 0 || photoHeight <= 0) {
-                 // Nếu kích thước khung ảnh lỗi, hiển thị thông báo thay vì màn hình đen
                 ctx.fillStyle = 'red';
                 ctx.textAlign = 'center';
                 ctx.font = '30px sans-serif';
@@ -170,16 +176,33 @@
                 const y = frameThickness + i * (photoHeight + frameThickness); 
 
                 ctx.fillStyle = '#ffffff';
-                ctx.fillRect(x, y, photoWidth, photoHeight); // Vẽ khung ảnh trắng
+                ctx.fillRect(x, y, photoWidth, photoHeight);
 
+                // LOGIC VẼ ẢNH ĐÃ CHỤP - ĐÃ ĐƯỢC KIỂM TRA LẠI
                 if (capturedPhotos[i] && capturedPhotos[i].image) {
                     const img = capturedPhotos[i].image;
-                    const fillRatio = Math.max(photoWidth / img.width, photoHeight / img.height);
-                    const finalDrawW = img.width * fillRatio * photoSizeScale;
-                    const finalDrawH = img.height * fillRatio * photoSizeScale;
+                    // Tính toán tỷ lệ để ảnh fill vừa khung nhưng không bị méo
+                    const imgAspectRatio = img.width / img.height;
+                    const frameAspectRatio = photoWidth / photoHeight;
+
+                    let finalDrawW, finalDrawH;
+                    if (imgAspectRatio > frameAspectRatio) { // Ảnh rộng hơn khung
+                        finalDrawH = photoHeight;
+                        finalDrawW = photoHeight * imgAspectRatio;
+                    } else { // Ảnh cao hơn hoặc bằng khung
+                        finalDrawW = photoWidth;
+                        finalDrawH = photoWidth / imgAspectRatio;
+                    }
+
+                    // Áp dụng photoSizeScale
+                    finalDrawW *= photoSizeScale;
+                    finalDrawH *= photoSizeScale;
+
                     const drawX = x + (photoWidth - finalDrawW) / 2;
                     const drawY = y + (photoHeight - finalDrawH) / 2;
+                    
                     ctx.drawImage(img, drawX, drawY, finalDrawW, finalDrawH);
+
                 } else {
                     ctx.fillStyle = 'gray';
                     ctx.font = '30px sans-serif';
@@ -226,7 +249,6 @@
         // =======================================================
 
         function loadDesignFromData(designData) {
-            // 1. Cập nhật Settings
             frameColor = designData.settings.frameColor || '#000000';
             frameThickness = parseInt(designData.settings.frameThickness) || 25;
             photoSizeScale = parseFloat(designData.settings.photoSizeScale) || 1.0;
@@ -234,10 +256,8 @@
             stripHeight = parseInt(designData.settings.stripHeight) || 1800;
             currentDesignId = designData.id;
             
-            // RẤT QUAN TRỌNG: GỌI DRAW FRAME NGAY LẬP TỨC
             drawFrame(); 
 
-            // 2. Tải Objects (Sticker/Text)
             canvasObjects = [];
             let loadCount = 0;
             const objectsToLoad = designData.objects || [];
@@ -246,7 +266,7 @@
             const finishLoading = () => {
                 loadCount++;
                 if (loadCount === totalObjects || totalObjects === 0) {
-                    drawFrame(); // Vẽ lại sau khi tất cả objects/text đã được tải
+                    drawFrame(); 
                 }
             };
 
@@ -270,7 +290,6 @@
                 }
             });
             
-            // 3. Khởi tạo Webcam và Buttons
             startWebcam();
             updateCaptureButtonText();
         }
@@ -280,7 +299,7 @@
         // =======================================================
 
         window.onload = () => {
-            const hashValue = window.location.hash.substring(1).trim(); 
+            const hashValue = window.location.hash.substring(1).trim(); // Đã thêm .trim()
             const container = document.getElementById('viewer-container');
             
             if (!hashValue) {
@@ -296,8 +315,11 @@
             }
 
             try {
-                // SỬ DỤNG HÀM URL-SAFE DECODE ĐỂ KHẮC PHỤC LỖI ATOM
                 const safeHashValue = urlSafeBase64Decode(hashValue);
+                // Kiểm tra xem chuỗi có rỗng hoặc không phải base64 hợp lệ không
+                if (!safeHashValue || safeHashValue.length % 4 !== 0 && !safeHashValue.endsWith('=')) {
+                    throw new Error("Chuỗi Base64 không hợp lệ sau khi giải mã an toàn.");
+                }
                 const decodedJsonString = decodeURIComponent(escape(atob(safeHashValue)));
                 const designData = JSON.parse(decodedJsonString);
                 
@@ -333,13 +355,21 @@
                 reader.onload = (e) => {
                     const img = new Image();
                     img.onload = () => {
+                        // Tìm slot ảnh trống đầu tiên để chèn
                         const slotIndex = capturedPhotos.findIndex(p => p === null || p === undefined);
-                        const indexToUse = slotIndex !== -1 ? slotIndex : 0;
+                        const indexToUse = slotIndex !== -1 ? slotIndex : currentPhotoIndex; // Nếu không có chỗ trống, dùng index hiện tại
+
                         capturedPhotos[indexToUse] = { index: indexToUse, image: img, src: e.target.result };
-                        if (currentPhotoIndex <= indexToUse) currentPhotoIndex = indexToUse + 1;
+                        // Cập nhật currentPhotoIndex nếu ảnh được tải lên ở slot cao hơn
+                        if (indexToUse >= currentPhotoIndex) {
+                            currentPhotoIndex = indexToUse + 1;
+                        }
                         updateCaptureButtonText();
                         drawFrame();
                         alert(`Ảnh đã được tải lên slot ${indexToUse + 1}.`);
+                    };
+                    img.onerror = () => {
+                        alert("Không thể tải ảnh bạn vừa chọn. Vui lòng thử lại với ảnh khác.");
                     };
                     img.src = e.target.result;
                 };
