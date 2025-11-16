@@ -280,7 +280,7 @@
         // =======================================================
 
         window.onload = () => {
-            const hashValue = window.location.hash.substring(1);
+            const hashValue = window.location.hash.substring(1).trim(); 
             const container = document.getElementById('viewer-container');
             
             if (!hashValue) {
