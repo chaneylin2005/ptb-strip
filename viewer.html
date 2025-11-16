@@ -276,6 +276,7 @@
             link.download = `photobooth-strip-${currentDesignId || Date.now()}.png`;
             link.href = imageURL;
             document.body.appendChild(link);
+            link.click();
             document.body.removeChild(link);
             
             selectedObject = tempSelectedObject;
@@ -355,6 +356,7 @@
             for (let i = canvasObjects.length - 1; i >= 0; i--) {
                 const obj = canvasObjects[i];
                 
+                // Kiểm tra Rotate Handle
                 if (isPointInRotateHandle(mousePos.x, mousePos.y, obj)) {
                     selectedObject = obj;
                     isRotating = true;
@@ -366,6 +368,7 @@
                     return;
                 }
 
+                // Kiểm tra Resize Handle
                 if (isPointInResizeHandle(mousePos.x, mousePos.y, obj)) {
                     selectedObject = obj;
                     isResizing = true;
@@ -376,6 +379,7 @@
                     return;
                 }
 
+                // Kiểm tra kéo đối tượng
                 if (isPointInObject(mousePos.x, mousePos.y, obj)) {
                     canvasObjects.splice(i, 1);
                     canvasObjects.push(obj);
@@ -473,8 +477,7 @@
             
             const photosToLoadData = designData.photos || [];
             const objectsToLoadData = designData.objects || [];
-            // Tổng số items cần load (ảnh đã chụp/tải lên + objects overlay)
-            const totalItemsToLoad = photosToLoadData.length + objectsToLoadData.length; 
+            const totalItemsToLoad = photosToLoadData.length + objectsToLoadData.length;
 
             const finishLoading = () => {
                 loadCount++;
@@ -485,7 +488,7 @@
             
             if (totalItemsToLoad === 0) finishLoading();
 
-            // 1. Tải ảnh đã chụp/tải lên từ mẫu (capturedPhotos)
+            // Tải ảnh đã chụp/tải lên từ mẫu (capturedPhotos)
             photosToLoadData.forEach((photoData, index) => {
                 if (photoData && photoData.src) {
                     const img = new Image();
@@ -495,10 +498,7 @@
                         updateCaptureButtonText();
                         finishLoading();
                     };
-                    img.onerror = () => {
-                        capturedPhotos[index] = null; // Bỏ qua ảnh lỗi
-                        finishLoading();
-                    };
+                    img.onerror = finishLoading;
                     img.crossOrigin = "Anonymous";
                     img.src = photoData.src;
                 } else {
@@ -507,7 +507,7 @@
                 }
             });
 
-            // 2. Tải Objects (Sticker/Text/Ảnh Idol)
+            // Tải Objects (Sticker/Text)
             objectsToLoadData.forEach(objData => {
                 if (objData.type === 'text') {
                     canvasObjects.push(objData);
@@ -518,10 +518,7 @@
                         canvasObjects.push({...objData, image: img});
                         finishLoading();
                     };
-                    img.onerror = () => {
-                         // Nếu image/sticker lỗi, vẫn tính là đã tải xong, nhưng không push vào array
-                        finishLoading(); 
-                    };
+                    img.onerror = finishLoading; 
                     img.crossOrigin = "Anonymous"; 
                     img.src = objData.src;
                 } else {
@@ -538,25 +535,18 @@
         // =======================================================
 
         window.onload = () => {
-            // Loại bỏ tất cả ký tự không phải là Base64 hợp lệ, sau đó trim
             const hashValueRaw = window.location.hash.substring(1);
             const hashValue = hashValueRaw.replace(/[^a-zA-Z0-9\-_=]/g, '').trim(); 
             const container = document.getElementById('viewer-container');
             
             if (!hashValue) {
-                container.innerHTML = `
-                    <div class="alert-message">
-                        **LỖI:** Không tìm thấy dữ liệu mẫu thiết kế chia sẻ trong URL.
-                    </div>
-                `;
+                container.innerHTML = `<div class="alert-message">**LỖI:** Không tìm thấy dữ liệu mẫu thiết kế chia sẻ trong URL.</div>`;
                 return;
             }
 
             try {
                 const safeHashValue = urlSafeBase64Decode(hashValue);
-                // Dùng atob để giải mã Base64
                 const base64Decoded = atob(safeHashValue); 
-                // Giải mã UTF-8
                 const decodedJsonString = decodeURIComponent(escape(base64Decoded));
                 const designData = JSON.parse(decodedJsonString);
                 
@@ -572,10 +562,11 @@
                     <div class="alert-message">
                         **LỖI NGHIÊM TRỌNG (Dữ liệu hỏng):** Không thể tải mẫu thiết kế. Dữ liệu trong URL bị hỏng.
                         <p>Chi tiết: ${e.message}</p>
-                        <p>Vui lòng quay lại Trang Thiết Kế (<a href="index.html">index.html</a>) và tạo lại link chia sẻ.</p>
+                        <p>Vui lòng yêu cầu người gửi tạo lại link chia sẻ mới.</p>
                     </div>
                 `;
             }
+
             // GẮN SỰ KIỆN TƯƠNG TÁC LÊN CANVAS
             canvas.addEventListener('mousedown', handleMouseDown);
             canvas.addEventListener('mousemove', handleMouseMove);
@@ -615,3 +606,5 @@
             }
         });
     </script>
+</body>
+</html>
