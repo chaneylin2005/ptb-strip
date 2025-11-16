@@ -105,7 +105,7 @@
                 <label for="viewerImageUpload" id="viewerImageUploadLabel" class="secondary-action" style="display: none; text-align: center; margin-bottom: 5px; background-color: #17a2b8; color: white; ">
                     **Hoặc Tải Ảnh Lên Để Thay Thế**
                 </label>
-                <input type="file" id="viewerImageUpload" accept="image/*" style="display: none;">
+                <input type="file" id="viewerImageUpload" accept="image/*"> 
             </div>
         </section>
 
@@ -316,9 +316,10 @@
                 capturePhotoBtn.style.display = 'block';
             } catch (error) {
                 console.error("Không thể truy cập webcam:", error);
-                alert("Không thể truy cập Webcam. Vui lòng sử dụng tính năng 'Tải Lên Ảnh Cá Nhân/Idol'.");
+                // Giữ lại nút chụp/tải ảnh để người dùng có thể sử dụng chức năng tải ảnh nếu webcam lỗi
                 webcamFeed.style.display = 'none';
-                capturePhotoBtn.style.display = 'none';
+                // capturePhotoBtn.style.display = 'none'; // Giữ lại nút chụp ảnh (để cho phép nút tải ảnh thay thế hoạt động)
+                alert("Không thể truy cập Webcam. Vui lòng sử dụng tính năng 'Tải Ảnh Lên Để Thay Thế'.");
             }
         }
 
@@ -752,7 +753,7 @@
         // PHẦN 4: LOGIC LƯU/TẢI/XUẤT VÀ CHUYỂN CHẾ ĐỘ
         // =======================================================
         
-        // HÀM MỚI: ẨN/HIỆN CONTROLS TÙY THEO CHẾ ĐỘ (ĐÃ CẬP NHẬT)
+        // HÀM MỚI: ẨN/HIỆN CONTROLS TÙY THEO CHẾ ĐỘ (ĐÃ CẬP NHẬT LẦN 3)
         function toggleDesignerControls(show) {
             if (show) {
                 // DESIGNER MODE: Hiển thị các nút thiết kế và chức năng chỉnh sửa
@@ -762,7 +763,11 @@
                 mainTitle.textContent = "Tạo Strip Photo Booth Cá Nhân";
 
                 viewerImageUploadLabel.style.display = 'none'; // Ẩn nút tải ảnh của Viewer
+                viewerImageUpload.style.display = 'none'; // Đảm bảo input cũng ẩn
+                
                 exportFinalImageBtn.style.marginTop = '20px'; // Quay lại margin mặc định
+                exportFinalImageBtn.style.display = 'block'; // Luôn hiện trong Designer Mode
+                capturePhotoBtn.style.display = 'block'; // Luôn hiện trong Designer Mode
                 
             } else {
                 // VIEWER MODE: Ẩn tất cả các controls thiết kế
@@ -771,9 +776,15 @@
                 canvasHeader.textContent = "Khung Ảnh Strip Photobooth Của Bạn";
                 mainTitle.textContent = "Sử Dụng Mẫu Photobooth";
 
-                // Hiển thị nút tải ảnh cho Viewer Mode thay thế cho nút Tải Ảnh trong controls panel
-                viewerImageUploadLabel.style.display = 'block'; 
+                // Chỉ hiện các controls liên quan đến việc TẠO ẢNH CUỐI CÙNG
+                capturePhotoBtn.style.display = 'block'; // Nút chụp ảnh
+                exportFinalImageBtn.style.display = 'block'; // Nút xuất ảnh
                 exportFinalImageBtn.style.marginTop = '5px'; // Đẩy nút Export lên cao hơn
+                
+                // Hiển thị nút tải ảnh cho Viewer Mode (phần tử label)
+                viewerImageUploadLabel.style.display = 'block'; 
+                viewerImageUpload.style.display = 'block'; // Đảm bảo input type file được hiển thị
+
             }
         }
 
@@ -1177,7 +1188,7 @@
         canvas.addEventListener('mouseout', handleMouseUp); 
 
 
-        // LOGIC TẢI THIẾT KẾ TỪ BASE64/URL HASH
+        // LOGIC TẢI THIẾT KẾ TỪ BASE64/URL HASH (ĐÃ CẬP NHẬT LẦN 3)
         window.onload = () => {
             const hashValue = window.location.hash.substring(1);
 
@@ -1191,23 +1202,16 @@
                         // Tải mẫu thành công -> Bật chế độ Viewer Mode
                         showDesign(false, designData);
                         toggleDesignerControls(false); // <--- TẮT CONTROLS CHỈNH SỬA
-                        return;
+                        return; // Ngăn không cho chạy tiếp xuống showLibrary
                     }
 
                 } catch (e) {
-                    // 3. Nếu giải mã thất bại, thử kiểm tra Local Storage (cho link ID cũ)
-                    const allDesigns = JSON.parse(localStorage.getItem('photoBoothDesigns') || '[]');
-                    const sharedDesign = allDesigns.find(d => d.id === hashValue);
-                    if (sharedDesign) {
-                        showDesign(false, sharedDesign);
-                        toggleDesignerControls(false); // <--- TẮT CONTROLS CHỈNH SỬA
-                        return;
-                    }
+                    // 2. Nếu giải mã thất bại, in lỗi và không làm gì khác
                     console.error("Lỗi khi tải hoặc giải mã link chia sẻ:", e);
                 }
             }
             
-            // 4. Mặc định: Hiển thị thư viện/Designer Mode
+            // 3. Mặc định hoặc nếu hash lỗi: Hiển thị thư viện/Designer Mode
             showLibrary();
         };
     </script>
