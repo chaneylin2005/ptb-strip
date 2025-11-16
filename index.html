@@ -86,7 +86,7 @@
 
     <div id="design-view">
         <section class="design-area">
-            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+            <div id="designer-actions-top" style="display: flex; gap: 10px; margin-bottom: 10px;">
                 <button id="toggleViewBtn" class="secondary-action" style="width: auto;" onclick="showLibrary()">
                     ← Quay lại Thư Viện Thiết Kế
                 </button>
@@ -94,7 +94,7 @@
                     **+ Tạo Thiết Kế Mới**
                 </button>
             </div>
-            <h2>Khung Xem Trước Strip 4 Ảnh (Bấm chuột phải để Xóa đối tượng)</h2>
+            <h2 id="canvas-header">Khung Xem Trước Strip 4 Ảnh (Bấm chuột phải để Xóa đối tượng)</h2>
             <canvas id="photoStripCanvas" width="600" height="1800">
                 Trình duyệt của bạn không hỗ trợ Canvas.
             </canvas>
@@ -104,7 +104,7 @@
             </div>
         </section>
 
-        <aside class="controls-panel">
+        <aside id="controls-panel" class="controls-panel">
             <h2>🛠️ Công Cụ Thiết Kế</h2>
 
             <fieldset class="control-group">
@@ -241,6 +241,12 @@
         const bringToFrontBtn = document.getElementById('bringToFrontBtn');
         const sendToBackBtn = document.getElementById('sendToBackBtn');
         const layerControlAlert = document.getElementById('layerControlAlert');
+        
+        // CÁC PHẦN TỬ MỚI ĐƯỢC CHỌN CHO VIEWER MODE
+        const controlsPanel = document.getElementById('controls-panel');
+        const designerActionsTop = document.getElementById('designer-actions-top');
+        const toggleViewBtn = document.getElementById('toggleViewBtn');
+        const canvasHeader = document.getElementById('canvas-header');
 
 
         const MAX_PHOTOS = 4;
@@ -277,6 +283,9 @@
 
 
         canvas.addEventListener('contextmenu', (e) => {
+            // Chỉ cho phép xóa khi đang ở Designer Mode
+            if (controlsPanel.style.display === 'none') return;
+            
             e.preventDefault(); 
             if (selectedObject) {
                  if (confirm("Bạn có muốn xóa đối tượng đã chọn này không?")) {
@@ -297,10 +306,11 @@
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
                 webcamFeed.srcObject = stream;
+                webcamFeed.style.display = 'block';
+                capturePhotoBtn.style.display = 'block';
             } catch (error) {
                 console.error("Không thể truy cập webcam:", error);
-                // THÔNG BÁO LỖI VỀ WEBCAM
-                // alert("Chức năng chụp ảnh chưa được triển khai đầy đủ. Vui lòng sử dụng tính năng 'Tải Lên Ảnh Cá Nhân/Idol'.");
+                alert("Không thể truy cập Webcam. Vui lòng sử dụng tính năng 'Tải Lên Ảnh Cá Nhân/Idol'.");
                 webcamFeed.style.display = 'none';
                 capturePhotoBtn.style.display = 'none';
             }
@@ -311,7 +321,7 @@
                 capturePhotoBtn.textContent = `Chụp Ảnh (${currentPhotoIndex + 1}/${MAX_PHOTOS})`;
                 capturePhotoBtn.disabled = false;
             } else {
-                capturePhotoBtn.textContent = `HOÀN TẤT CHỤP!`;
+                capturePhotoBtn.textContent = `HOÀN TẤT CHỤP! (Sẵn sàng Xuất Ảnh)`;
                 capturePhotoBtn.disabled = true;
             }
         }
@@ -429,8 +439,8 @@
                     ctx.fillText(obj.text, obj.x, obj.y + obj.fontSize * 0.75);
                 }
                 
-                // Vẽ viền và điểm điều khiển nếu đối tượng được chọn
-                if (obj === selectedObject) {
+                // Vẽ viền và điểm điều khiển chỉ khi ở Designer Mode VÀ đối tượng được chọn
+                if (controlsPanel.style.display !== 'none' && obj === selectedObject) {
                     ctx.strokeStyle = '#FF00FF'; 
                     ctx.lineWidth = 2;
                     ctx.strokeRect(obj.x, obj.y, obj.width, obj.height);
@@ -595,6 +605,9 @@
         }
 
         function handleMouseDown(e) {
+            // Chỉ cho phép tương tác khi ở Designer Mode
+            if (controlsPanel.style.display === 'none') return;
+            
             const mousePos = getMousePos(e);
             let foundObject = null;
             isResizing = false;
@@ -648,6 +661,7 @@
         }
 
         function handleMouseMove(e) {
+            if (controlsPanel.style.display === 'none') return;
             if (!isDragging || !selectedObject) {
                 return;
             }
@@ -695,6 +709,7 @@
         }
 
         function handleMouseUp() {
+            if (controlsPanel.style.display === 'none') return;
             if (isRotating && selectedObject) {
                 lastAngle = selectedObject.angle || 0; 
             }
@@ -728,10 +743,32 @@
         }
 
         // =======================================================
-        // PHẦN 4: LOGIC LƯU/TẢI/XUẤT
+        // PHẦN 4: LOGIC LƯU/TẢI/XUẤT VÀ CHUYỂN CHẾ ĐỘ
         // =======================================================
+        
+        // HÀM MỚI: ẨN/HIỆN CONTROLS TÙY THEO CHẾ ĐỘ
+        function toggleDesignerControls(show) {
+            if (show) {
+                // Hiển thị tất cả các controls thiết kế (chế độ Designer)
+                controlsPanel.style.display = 'block';
+                designerActionsTop.style.display = 'flex';
+                canvasHeader.textContent = "Khung Xem Trước Strip 4 Ảnh (Bấm chuột phải để Xóa đối tượng)";
+                mainTitle.textContent = "Tạo Strip Photo Booth Cá Nhân";
+            } else {
+                // Ẩn tất cả các controls thiết kế (chế độ Viewer/User)
+                controlsPanel.style.display = 'none';
+                designerActionsTop.style.display = 'none'; // Ẩn nút Quay lại thư viện và Tạo mới
+                canvasHeader.textContent = "Khung Ảnh Strip Photobooth Của Bạn";
+                mainTitle.textContent = "Sử Dụng Mẫu Photobooth";
+
+                // Chỉ hiện nút Xuất Ảnh Hoàn Chỉnh trong Designer mode nếu nó bị ẩn
+                exportFinalImageBtn.style.display = 'block'; 
+            }
+        }
+
 
         function loadDesigns() {
+            // ... (Logic tải designs từ Local Storage không đổi) ...
             const savedDesigns = JSON.parse(localStorage.getItem('photoBoothDesigns') || '[]');
             designList.innerHTML = '';
             
@@ -759,8 +796,8 @@
         function showLibrary() {
             designView.style.display = 'none';
             libraryView.style.display = 'block'; 
-            mainTitle.textContent = "📚 Thư Viện Mẫu Thiết Kế Của Tôi";
             
+            toggleDesignerControls(true); // Luôn Bật Designer Controls khi ở Library
             loadDesigns(); 
             
             if (webcamFeed.srcObject) {
@@ -773,9 +810,11 @@
         function showDesign(isNew = false, designData = null) {
             designView.style.display = 'flex';
             libraryView.style.display = 'none';
-            mainTitle.textContent = "Tạo Strip Photo Booth Cá Nhân";
             currentDesignId = null; 
             selectedObject = null;
+            
+            // LUÔN BẬT CONTROLS VÀO LÚC NÀY, LOGIC TẮT SẼ Ở window.onload HOẶC showLibrary/loadDesign
+            toggleDesignerControls(true); 
 
             if (isNew) {
                 capturedPhotos = [];
@@ -824,7 +863,10 @@
                     loadCount++;
                     if (loadCount === totalObjects || totalObjects === 0) {
                         drawFrame();
-                        alert(`Thiết kế "${designData.name || currentDesignId}" đã được tải thành công!`);
+                        // Chỉ hiện thông báo khi tải từ Local Storage/File
+                        if (!window.location.hash.substring(1)) {
+                            alert(`Thiết kế "${designData.name || currentDesignId}" đã được tải thành công!`);
+                        }
                     }
                 };
 
@@ -857,6 +899,7 @@
         
         // Hàm Lưu Thiết Kế & Tải File JSON
         function saveDesign() {
+            // ... (Logic Lưu không đổi) ...
             if (!currentDesignId) {
                 currentDesignId = Math.random().toString(36).substring(2, 9);
             }
@@ -915,6 +958,7 @@
         
         // Hàm xử lý Tải File JSON
         function handleDesignUpload(file) {
+            // ... (Logic Tải File không đổi) ...
             const reader = new FileReader();
             reader.onload = (e) => {
                 try {
@@ -1088,7 +1132,7 @@
         canvas.addEventListener('mouseout', handleMouseUp); 
 
 
-        // LOGIC TẢI THIẾT KẾ TỪ BASE64/URL HASH
+        // LOGIC TẢI THIẾT KẾ TỪ BASE64/URL HASH (ĐÃ CẬP NHẬT VIEWER MODE)
         window.onload = () => {
             const hashValue = window.location.hash.substring(1);
 
@@ -1098,9 +1142,10 @@
                     const decodedJsonString = decodeURIComponent(escape(atob(hashValue)));
                     const designData = JSON.parse(decodedJsonString);
                     
-                    // 2. Nếu giải mã thành công và có dữ liệu, tải thiết kế
                     if (designData && designData.settings) {
+                        // Tải mẫu thành công -> Bật chế độ Viewer Mode
                         showDesign(false, designData);
+                        toggleDesignerControls(false); // <--- TẮT CONTROLS CHỈNH SỬA
                         return;
                     }
 
@@ -1110,14 +1155,16 @@
                     const sharedDesign = allDesigns.find(d => d.id === hashValue);
                     if (sharedDesign) {
                         showDesign(false, sharedDesign);
+                        toggleDesignerControls(false); // <--- TẮT CONTROLS CHỈNH SỬA
                         return;
                     }
                     console.error("Lỗi khi tải hoặc giải mã link chia sẻ:", e);
                 }
             }
             
-            // 4. Mặc định: Hiển thị thư viện
+            // 4. Mặc định: Hiển thị thư viện/Designer Mode
             showLibrary();
+            toggleDesignerControls(true); // <--- BẬT CONTROLS CHỈNH SỬA
         };
     </script>
 </body>
