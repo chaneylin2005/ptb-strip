@@ -66,6 +66,17 @@
     </footer>
 
     <script>
+        // --- HÀM HỖ TRỢ URL-SAFE BASE64 (ĐẶT Ở ĐÂY ĐỂ ĐẢM BẢO PHẠM VI TOÀN CỤC) ---
+        function urlSafeBase64Decode(str) {
+            str = str.replace(/-/g, '+').replace(/_/g, '/');
+            // Thêm padding cho atob()
+            while (str.length % 4) {
+                str += '=';
+            }
+            return str;
+        }
+        // ------------------------------------------
+
         // --- KHAI BÁO BIẾN CHO VIEWER MODE ---
         const canvas = document.getElementById('photoStripCanvas');
         const ctx = canvas.getContext('2d');
@@ -87,16 +98,7 @@
         let stripWidth = 600;
         let stripHeight = 1800;
         
-        // --- HÀM HỖ TRỢ URL-SAFE BASE64 MỚI ---
-        function urlSafeBase64Decode(str) {
-            str = str.replace(/-/g, '+').replace(/_/g, '/');
-            // Thêm padding cho atob()
-            while (str.length % 4) {
-                str += '=';
-            }
-            return str;
-        }
-        // ------------------------------------------
+        
 
         // =======================================================
         // CÁC HÀM CƠ BẢN (START WEBCAM, DRAW FRAME, CAPTURE PHOTO, EXPORT)
@@ -345,3 +347,5 @@
             }
         });
     </script>
+</body>
+</html>
