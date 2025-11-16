@@ -98,6 +98,7 @@
             background-image: radial-gradient(#666 10%, transparent 10%);
             background-size: 20px 20px;
             background-color: #f0f0f0; 
+            
         }
         .bg-pattern-stripes {
             background-color: #eee;
@@ -106,6 +107,35 @@
             background-size: 15px 15px;
             background-position: 0 0, 7.5px 7.5px;
         }
+        /* === BACKGROUND CSS MỚI === */
+.webcam-background-preview {
+    width: 80px;
+    height: 50px; /* Kích thước nhỏ để xem trước */
+    border: 2px solid #333;
+    overflow: hidden;
+    position: relative;
+    cursor: pointer;
+    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+}
+
+/* Các loại nền trơn */
+.bg-solid-red { background-color: #dc3545; }
+.bg-solid-blue { background-color: #007bff; }
+.bg-solid-yellow { background-color: #ffc107; }
+
+/* Các loại nền họa tiết (Ví dụ) */
+.bg-pattern-dot { 
+    background-image: radial-gradient(#666 10%, transparent 10%);
+    background-size: 20px 20px;
+    background-color: #f0f0f0; 
+}
+.bg-pattern-stripes {
+    background-color: #eee;
+    background-image: linear-gradient(45deg, #bbb 25%, transparent 25%, transparent 75%, #bbb 75%, #bbb), 
+                      linear-gradient(45deg, #bbb 25%, transparent 25%, transparent 75%, #bbb 75%, #bbb);
+    background-size: 15px 15px;
+    background-position: 0 0, 7.5px 7.5px;
+}
 
     </style>
 </head>
@@ -301,12 +331,20 @@
         const bringToFrontBtn = document.getElementById('bringToFrontBtn');
         const sendToBackBtn = document.getElementById('sendToBackBtn');
         const layerControlAlert = document.getElementById('layerControlAlert');
-        
-        // Background Controls (Đã chèn biến mới)
+        // ... (Tiếp tục từ khối khai báo biến)
+
+// Background Controls
+const backgroundLibrary = document.getElementById('backgroundLibrary');
+const bgColorPicker = document.getElementById('bgColorPicker');
+const removeBgBtn = document.getElementById('removeBgBtn');
+const webcamPreviewDiv = document.querySelector('.webcam-preview'); // Div chứa webcamFeed
+// ...
+        // Background Controls
         const backgroundLibrary = document.getElementById('backgroundLibrary');
         const bgColorPicker = document.getElementById('bgColorPicker');
         const removeBgBtn = document.getElementById('removeBgBtn');
         const webcamPreviewDiv = document.querySelector('.webcam-preview'); // Div chứa webcamFeed
+
 
         // CÁC PHẦN TỬ CHO VIEWER MODE
         const controlsPanel = document.getElementById('controls-panel');
@@ -409,12 +447,18 @@
                 const style = window.getComputedStyle(webcamPreviewDiv);
                 
                 // Lấy các giá trị style phức tạp (nếu có)
+                const backgroundImage = style.backgroundImage;
+                const backgroundSize = style.backgroundSize;
                 const backgroundColor = style.backgroundColor;
                 
                 // VẼ BACKGROUND
-                // 1. Vẽ màu nền chính (sử dụng màu nền của pattern)
+                // 1. Vẽ màu nền chính
                 tempCtx.fillStyle = backgroundColor;
                 tempCtx.fillRect(0, 0, canvasWidth, canvasHeight);
+                
+                // NOTE: Áp dụng họa tiết CSS complex trực tiếp lên Canvas bằng JS là RẤT KHÓ
+                // và cần sử dụng thư viện bên ngoài. Chúng ta chỉ hỗ trợ màu trơn qua JS.
+                // Ở đây, chúng ta chỉ lấy màu nền chính của pattern làm màu nền.
             }
         }
         
@@ -830,7 +874,102 @@
                 alert("Vui lòng chọn một đối tượng để điều chỉnh lớp.");
                 return;
             }
+// ... (Tiếp tục từ cuối hàm adjustLayer)
 
+// ==================== LOGIC BACKGROUND CHỤP ẢNH ====================
+
+// Hàm áp dụng style background
+function applyWebcamBackground(type, value) {
+    // 1. Áp dụng cho div chứa webcam (để người dùng xem trước)
+    webcamPreviewDiv.classList.remove('bg-solid-red', 'bg-solid-blue', 'bg-pattern-dot', 'bg-pattern-stripes', 'bg-solid-yellow');
+    webcamPreviewDiv.style.backgroundColor = 'transparent';
+    webcamPreviewDiv.style.backgroundImage = 'none';
+
+    if (type === 'solid') {
+        webcamPreviewDiv.style.backgroundColor = value;
+    } else if (type === 'pattern') {
+        webcamPreviewDiv.classList.add(value);
+    }
+
+    // Lưu trữ cài đặt để sử dụng khi chụp ảnh và chia sẻ
+    webcamPreviewDiv.setAttribute('data-current-bg-type', type || 'none');
+    webcamPreviewDiv.setAttribute('data-current-bg-value', value || '');
+}
+
+// THAY THẾ CHỨC NĂNG CHỤP ẢNH (CAN THIỆP VÀO HÀM capturePhoto)
+const originalCapturePhoto = capturePhoto;
+capturePhoto = function() {
+    if (currentPhotoIndex >= MAX_PHOTOS) return;
+
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = webcamFeed.videoWidth;
+    tempCanvas.height = webcamFeed.videoHeight;
+    const tempCtx = tempCanvas.getContext('2d');
+    
+    // Hàm được gọi khi nhấn Chụp Ảnh (cần can thiệp vào capturePhoto)
+    function captureWithBackground(tempCtx, canvasWidth, canvasHeight) {
+        const bgType = webcamPreviewDiv.getAttribute('data-current-bg-type');
+        const bgValue = webcamPreviewDiv.getAttribute('data-current-bg-value');
+        
+        if (bgType === 'solid' && bgValue) {
+            tempCtx.fillStyle = bgValue;
+            tempCtx.fillRect(0, 0, canvasWidth, canvasHeight);
+        } else if (bgType === 'pattern' && bgValue) {
+            // Lấy style pattern từ div preview (CSS) và áp dụng cho canvas
+            const style = window.getComputedStyle(webcamPreviewDiv);
+            tempCtx.fillStyle = style.backgroundColor;
+            tempCtx.fillRect(0, 0, canvasWidth, canvasHeight);
+            
+            // Do phức tạp, họa tiết (pattern) chỉ lấy màu nền chính
+        }
+    }
+    
+    // 1. ÁP DỤNG BACKGROUND CHO CANVAS TRƯỚC
+    captureWithBackground(tempCtx, tempCanvas.width, tempCanvas.height);
+
+    // 2. VẼ WEBCAM LÊN TRÊN BACKGROUND
+    tempCtx.drawImage(webcamFeed, 0, 0, tempCanvas.width, tempCanvas.height);
+
+    // 3. TIẾN HÀNH LƯU ẢNH (Phần còn lại giữ nguyên)
+    const capturedImage = new Image();
+    capturedImage.onload = () => {
+        capturedPhotos[currentPhotoIndex] = {
+            index: currentPhotoIndex,
+            image: capturedImage,
+            src: tempCanvas.toDataURL('image/png') 
+        };
+        currentPhotoIndex++;
+        updateCaptureButtonText();
+        drawFrame(); 
+    };
+    capturedImage.src = tempCanvas.toDataURL('image/png');
+};
+
+
+// Gắn sự kiện cho các ô xem trước
+backgroundLibrary.querySelectorAll('.webcam-background-preview').forEach(previewDiv => {
+    previewDiv.addEventListener('click', () => {
+        const type = previewDiv.getAttribute('data-bg-type');
+        const value = (type === 'solid') ? previewDiv.getAttribute('data-bg-value') : previewDiv.getAttribute('data-bg-class');
+        applyWebcamBackground(type, value);
+    });
+});
+
+// Gắn sự kiện cho Color Picker (chọn màu trơn tùy ý)
+bgColorPicker.addEventListener('input', () => {
+    applyWebcamBackground('solid', bgColorPicker.value);
+});
+
+// Gắn sự kiện Xóa Background
+removeBgBtn.addEventListener('click', () => {
+    applyWebcamBackground('none', '');
+});
+
+// KHỞI TẠO BACKGROUND MẶC ĐỊNH
+document.addEventListener('DOMContentLoaded', () => {
+    // Khởi tạo Background mặc định (trắng)
+    applyWebcamBackground('solid', '#ffffff'); 
+});
             const currentIndex = canvasObjects.findIndex(obj => obj === selectedObject);
             if (currentIndex === -1) return;
 
@@ -854,6 +993,7 @@
         // =======================================================
         
         function toggleDesignerControls(show) {
+            // CODE NÀY KHÔNG CÒN ĐƯỢC DÙNG TRONG INDEX.HTML NỮA (Chuyển sang viewer.html)
             if (show) {
                 designView.style.display = 'flex';
                 libraryView.style.display = 'none';
@@ -927,7 +1067,6 @@
                 stripWidthInput.value = '600';
                 stripHeightInput.value = '1800';
                 currentDesignId = Math.random().toString(36).substring(2, 9);
-                applyWebcamBackground('solid', '#ffffff'); // Khởi tạo nền mặc định
             }
 
             if (designData) {
@@ -938,8 +1077,6 @@
                 stripWidthInput.value = designData.settings.stripWidth || '600';
                 stripHeightInput.value = designData.settings.stripHeight || '1800';
                 
-                // ÁP DỤNG BACKGROUND
-                applyWebcamBackground(designData.settings.bgType, designData.settings.bgValue);
                 
                 const photosToLoad = designData.photos || [];
                 const objectsToLoad = designData.objects || [];
@@ -983,10 +1120,11 @@
                         finishLoading();
                     } else if (objData.src) {
                         const img = new Image();
-                        // Gán image object ngay lập tức 
+                        // Gán image object ngay lập tức (Cần thiết cho Viewer Mode)
                         objData.image = img; 
 
                         img.onload = () => {
+                            // Ảnh đã tải thành công.
                             finishLoading();
                         };
                         img.onerror = () => {
@@ -1032,7 +1170,7 @@
                     stripWidth: stripWidthInput.value,
                     stripHeight: stripHeightInput.value,
                     
-                    // LƯU BACKGROUND
+                    // LƯU CẢ BACKGROUND
                     bgType: webcamPreviewDiv.getAttribute('data-current-bg-type') || 'none',
                     bgValue: webcamPreviewDiv.getAttribute('data-current-bg-value') || ''
                 },
