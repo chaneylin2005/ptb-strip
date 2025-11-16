@@ -1,71 +1,4 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Photo Booth Strip Viewer</title>
-    
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Montserrat:ital,wght@0,400;0,700;1,400&family=Pacifico&family=Pinyon+Script&display=swap" rel="stylesheet">
-    
-    <style>
-        /* ==================== CSS CƠ BẢN ==================== */
-        body { font-family: 'Montserrat', sans-serif; margin: 0; padding: 0; background-color: #f4f4f9; color: #333; }
-        header { background-color: #007bff; color: white; padding: 20px; text-align: center; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); }
-        button, .primary-action, .secondary-action { border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; transition: background-color 0.3s; width: 100%; margin-top: 5px; }
-        .primary-action { background-color: #28a745; color: white; font-size: 1.1em; margin-top: 20px; }
-        .primary-action:hover { background-color: #1e7e34; }
-        .secondary-action { background-color: #6c757d; color: white; }
-        .secondary-action:hover { background-color: #5a6268; }
-        .alert-message { background-color: #fff3cd; color: #856404; padding: 10px; border: 1px solid #ffeeba; border-radius: 4px; margin-bottom: 20px; text-align: center; }
-
-        /* ==================== VIEW GỌN NHẸ ==================== */
-        #viewer-container { max-width: 650px; margin: 20px auto; padding: 0 15px; text-align: center; }
-        #photoStripCanvas { border: 5px dashed #ccc; background-color: white; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); max-width: 100%; height: auto; display: block; margin: 20px auto; }
-        .webcam-preview { margin-top: 20px; }
-        #webcamFeed { width: 300px; height: auto; border: 2px solid #333; display: block; margin: 10px auto; }
-        #viewerImageUploadLabel { text-align: center; margin-bottom: 5px; background-color: #17a2b8; color: white; display: block; }
-        
-    </style>
-</head>
-<body>
-
-    <header>
-        <h1 id="main-title">Sử Dụng Mẫu Photobooth</h1>
-    </header>
-
-    <div id="viewer-container">
-        <h2 id="canvas-header">Khung Ảnh Strip Photobooth Của Bạn</h2>
-        <canvas id="photoStripCanvas" width="600" height="1800">
-            Trình duyệt của bạn không hỗ trợ Canvas.
-        </canvas>
-        <div class="webcam-preview">
-            <video id="webcamFeed" autoplay></video>
-            <button id="capturePhotoBtn" class="primary-action" style="background-color: #ffc107; color: #333; width: 100%; margin-top: 0;">Chụp Ảnh (1/4)</button>
-            
-            <label for="viewerImageUpload" id="viewerImageUploadLabel" class="secondary-action" style="margin-top: 5px;">
-                **Hoặc Tải Ảnh Lên Để Thay Thế**
-            </label>
-            <input type="file" id="viewerImageUpload" accept="image/*" style="display: none;">
-        </div>
-        
-        <button id="exportFinalImageBtn" class="primary-action">Xuất Strip Ảnh Hoàn Chỉnh (Tải về)</button>
-        
-        <div class="alert-message" style="margin-top: 20px;">
-             Bạn không thể chỉnh sửa thiết kế này. Để tạo mẫu riêng, hãy truy cập trang chủ.
-        </div>
-        
-        <a id="backToDesignLink" href="index.html" class="secondary-action" style="display: block; margin-top: 15px; text-decoration: none;">
-            ← Quay lại Trang Thiết Kế (index.html)
-        </a>
-    </div>
-
-    <footer>
-        <p>&copy; 2025 Photo Booth Designer Của Bạn</p>
-    </footer>
-
-    <script>
+<script>
         // --- KHAI BÁO BIẾN CHO VIEWER MODE ---
         const canvas = document.getElementById('photoStripCanvas');
         const ctx = canvas.getContext('2d');
@@ -131,6 +64,7 @@
         }
 
         function drawFrame() {
+            // Cập nhật lại kích thước canvas
             canvas.width = stripWidth;
             canvas.height = stripHeight;
 
@@ -209,6 +143,9 @@
             stripWidth = parseInt(designData.settings.stripWidth) || 600;
             stripHeight = parseInt(designData.settings.stripHeight) || 1800;
             currentDesignId = designData.id;
+            
+            // FIX: GỌI DRAW FRAME NGAY LẬP TỨC ĐỂ CANVAS HIỂN THỊ
+            drawFrame(); 
 
             // 2. Tải Objects (Sticker/Text)
             canvasObjects = [];
@@ -219,7 +156,7 @@
             const finishLoading = () => {
                 loadCount++;
                 if (loadCount === totalObjects || totalObjects === 0) {
-                    drawFrame(); 
+                    drawFrame(); // Vẽ lại sau khi tất cả objects/text đã được tải
                 }
             };
 
@@ -292,7 +229,7 @@
             }
         };
 
-        // Gắn sự kiện (vì không có controls panel, gắn thẳng vào các nút)
+        // Gắn sự kiện 
         capturePhotoBtn.addEventListener('click', capturePhoto);
         exportFinalImageBtn.addEventListener('click', exportFinalImage);
         
@@ -318,5 +255,3 @@
             }
         });
     </script>
-</body>
-</html>
